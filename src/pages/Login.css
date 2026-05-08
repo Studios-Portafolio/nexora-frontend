@@ -1,0 +1,105 @@
+/* src/pages/Login.css */
+
+/* Contenedor principal que ocupa toda la pantalla */
+.login-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+}
+
+/* Sección de la imagen */
+.login-image-section {
+  display: none; /* Oculto por defecto en teléfonos */
+  background-image: url('/assets/login-bg.jpg'); /* 🔥 Asegúrate de tener tu imagen aquí 🔥 */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Sección del formulario */
+.login-form-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #ffffff;
+}
+
+/* La tarjeta blanca donde van los inputs */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  padding: 40px 30px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+.login-title {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1a1a1a;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  color: #666666;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+
+/* Inputs personalizados */
+.custom-input {
+  --background: #f4f5f8;
+  --padding-start: 15px;
+  --border-radius: 10px;
+  margin-bottom: 15px;
+  font-size: 15px;
+}
+
+.login-btn {
+  margin-top: 20px;
+  --border-radius: 10px;
+  font-weight: bold;
+  height: 48px;
+}
+
+/* =========================================
+   📱 MODO TELÉFONO (LA MAGIA OCURRE AQUÍ)
+   ========================================= */
+@media (max-width: 768px) {
+  .login-container {
+    /* En teléfonos, la imagen se vuelve el fondo general */
+    background-image: url('/assets/login-bg.jpg'); /* 🔥 Misma ruta de tu imagen 🔥 */
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+
+  .login-form-section {
+    background-color: transparent; /* Quitamos el fondo blanco duro */
+    z-index: 10;
+  }
+
+  .login-card {
+    /* Efecto cristal (Glassmorphism) para que el texto se lea sobre la imagen */
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* =========================================
+   💻 MODO PC / TABLET
+   ========================================= */
+@media (min-width: 769px) {
+  .login-image-section {
+    display: block; /* Aparece el lado izquierdo */
+    flex: 1.2; /* Toma un poco más de la mitad de la pantalla */
+  }
+  
+  .login-form-section {
+    flex: 1; /* Toma el resto de la pantalla */
+  }
+}
