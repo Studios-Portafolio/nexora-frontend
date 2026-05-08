@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldAlert, CheckCircle2, CreditCard, Copy, Check, LogOut, MessageCircle } from 'lucide-react';
 
@@ -78,7 +78,7 @@ const Membership = () => {
             <h3 className="text-xl font-bold text-stone-400 mb-2">Plan Básico</h3>
             <div className="flex items-baseline gap-2 mb-6">
               <span className="text-5xl font-black text-white">$10</span>
-              <span className="text-stone-500 font-medium">/ 2 meses</span>
+              <span className="text-stone-500 font-medium">/ 1 mes</span>
             </div>
             <ul className="space-y-4 mb-8">
               <li className="flex items-center gap-3 text-stone-300 font-medium"><CheckCircle2 className="w-5 h-5 text-teal-400" /> Acceso total al inventario</li>
@@ -91,7 +91,7 @@ const Membership = () => {
             className={`relative bg-stone-900 rounded-3xl p-8 border-2 cursor-pointer transition-all duration-300 overflow-hidden ${selectedPlan === '1year' ? 'border-indigo-500 shadow-xl shadow-indigo-500/20 scale-105' : 'border-stone-800 shadow-sm hover:border-stone-700'}`}
           >
             <div className="absolute -top-4 right-8 bg-teal-500 text-white px-3 py-1 rounded-full text-xs font-black tracking-wide z-10">
-              AHORRA $20
+              AHORRA $60
             </div>
             {selectedPlan === '1year' && (
               <div className="absolute -top-4 left-8 bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-black tracking-wide flex items-center gap-1 z-10">
@@ -100,7 +100,7 @@ const Membership = () => {
             )}
             <h3 className="text-xl font-bold text-stone-400 mb-2 relative z-10">Plan Anual</h3>
             <div className="flex items-baseline gap-2 mb-6 relative z-10">
-              <span className="text-5xl font-black text-white">$40</span>
+              <span className="text-5xl font-black text-white">$60</span>
               <span className="text-stone-500 font-medium">/ 1 año</span>
             </div>
             <ul className="space-y-4 mb-8 relative z-10">
@@ -116,7 +116,7 @@ const Membership = () => {
               <CreditCard className="w-6 h-6 text-indigo-400" /> Realiza tu pago
             </h2>
             <p className="text-stone-400 mb-8 font-medium">
-              Transfiere <strong className="text-white">${selectedPlan === '2months' ? '10' : '40'}</strong> a cualquiera de estos métodos.
+              Transfiere <strong className="text-white">${selectedPlan === '2months' ? '10' : '60'}</strong> a cualquiera de estos métodos.
             </p>
 
             <div className="space-y-4">

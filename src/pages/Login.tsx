@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, Lock, User, ArrowRight, Boxes, ShieldCheck, Loader2, X } from 'lucide-react';
 
 const Login = () => {
-  const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,7 +13,9 @@ const Login = () => {
     password: ''
   });
 
-  const API_BASE = 'http://192.168.1.40:3000/api/auth';
+  // 🔥 URL ACTUALIZADA PARA PRODUCCIÓN 🔥
+  // Ojo: Asegúrate de poner el link de Render de tu Backend aquí
+  const API_BASE = 'https://nexora-inventory-backend.onrender.com/api/auth'; 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +39,6 @@ const Login = () => {
 
         // 🚦 CONTROL DE TRÁFICO ESTRICTO 🚦
         if (user.role === 'ADMIN') {
-          // Usamos window.location.href para forzar la recarga y que el App.tsx lo lea limpio
           window.location.href = '/admin-panel'; 
         } else if (user.status === 'BLOCKED' || user.status === 'PENDING') {
           window.location.href = '/membresia';   
