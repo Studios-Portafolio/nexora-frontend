@@ -1,4 +1,4 @@
-package com.example.app;
+package com.angelcastro.nexora;
 
 import com.getcapacitor.BridgeActivity;
 

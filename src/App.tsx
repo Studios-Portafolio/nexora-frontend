@@ -1,8 +1,12 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Membership from './pages/Membership';
-import AdminPanel from './pages/AdminPanel'; // 🔥 ASEGÚRATE DE QUE ESTO ESTÉ IMPORTADO 🔥
+import AdminPanel from './pages/AdminPanel';
+import SettingsPanel from './pages/SettingsPanel'; // 🔥 IMPORTAMOS EL PANEL DE CONFIGURACIÓN 🔥
+import SalesHistory from './pages/SalesHistory'; // 🔥 IMPORTAMOS EL LIBRO MAYOR DE VENTAS 🔥
+import SplashScreen from './pages/SplashScreen'; // 🔥 AQUÍ IMPORTAMOS EL SPLASH SCREEN 🔥
 
 // Componente para proteger las rutas privadas
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: any, requireAdmin?: boolean }) => {
@@ -40,45 +44,76 @@ const ProtectedRoute = ({ children, requireAdmin = false }: { children: any, req
 };
 
 function App() {
+  // 🔥 ESTADO QUE CONTROLA LA PANTALLA DE CARGA 🔥
+  const [showSplash, setShowSplash] = useState(true);
+
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        
-        {/* Ruta principal del inventario (Solo usuarios normales) */}
-        <Route 
-          path="/" 
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          } 
-        />
+    <>
+      {/* Si showSplash es true, mostramos la animación por encima de todo */}
+      {showSplash && (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      )}
 
-        {/* 💸 Ruta de la pasarela de pagos */}
-        <Route 
-          path="/membresia" 
-          element={
-            <ProtectedRoute>
-              <Membership />
-            </ProtectedRoute>
-          } 
-        />
+      {/* Tu aplicación real carga por debajo tranquilamente */}
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          {/* Ruta principal del inventario (Solo usuarios normales) */}
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } 
+          />
 
-        {/* 👑 Ruta del Panel de Administrador (Solo ADMIN) */}
-        <Route 
-          path="/admin-panel" 
-          element={
-            <ProtectedRoute requireAdmin={true}>
-              <AdminPanel />
-            </ProtectedRoute>
-          } 
-        /> 
-        
-        {/* Cualquier otra ruta errónea, la mandamos al inicio */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* ⚙️ Ruta de Configuración de Empresa (Para el dueño del negocio) */}
+          <Route 
+            path="/configuracion" 
+            element={
+              <ProtectedRoute>
+                <SettingsPanel />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 🧾 NUEVA RUTA: Historial de Ventas y Facturas */}
+          <Route 
+            path="/historial-ventas" 
+            element={
+              <ProtectedRoute>
+                <SalesHistory />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 💸 Ruta de la pasarela de pagos */}
+          <Route 
+            path="/membresia" 
+            element={
+              <ProtectedRoute>
+                <Membership />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* 👑 Ruta del Panel de Administrador (Solo ADMIN) */}
+          <Route 
+            path="/admin-panel" 
+            element={
+              <ProtectedRoute requireAdmin={true}>
+                <AdminPanel />
+              </ProtectedRoute>
+            } 
+          /> 
+          
+          {/* Cualquier otra ruta errónea, la mandamos al inicio */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </>
   );
 }
 

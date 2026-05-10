@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { LayoutDashboard, Mail, Lock, User, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Mail, Lock, User, ArrowRight, AlertCircle, Loader2, Eye, EyeOff } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { API_URL } from '../config'; 
 
 const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false); // 🔥 ESTADO DEL OJITO
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -19,8 +21,7 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // Petición al endpoint de registro
-      const response = await axios.post('http://localhost:3000/api/auth/register', {
+      const response = await axios.post(`${API_URL}/auth/register`, {
         name,
         email,
         password
@@ -28,7 +29,6 @@ const Register = () => {
 
       if (response.data.success) {
         setSuccess(true);
-        // Esperamos 2 segundos y lo enviamos al Login
         setTimeout(() => {
           navigate('/login');
         }, 2000);
@@ -101,19 +101,27 @@ const Register = () => {
             </div>
           </div>
 
+          {/* 🔥 SECCIÓN DE CONTRASEÑA CON EL OJITO 🔥 */}
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Contraseña</label>
             <div className="relative group">
               <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-5 h-5 group-focus-within:text-blue-600 transition-colors" />
               <input 
-                type="password" 
+                type={showPassword ? "text" : "password"} 
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading || success}
-                className="w-full pl-12 pr-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none transition-all disabled:opacity-50"
+                className="w-full pl-12 pr-12 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-200 focus:border-blue-500 outline-none transition-all disabled:opacity-50"
                 placeholder="••••••••"
                 required
               />
+              <button 
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-blue-600 focus:outline-none transition-colors"
+              >
+                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
           </div>
 
