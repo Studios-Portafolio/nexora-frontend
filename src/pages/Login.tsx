@@ -47,11 +47,13 @@ const Login = () => {
 
       if (response.data.success || response.data.token) {
         const emailToSave = formData.email;
-        localStorage.clear(); 
+        
+        // 🔥 SEGURIDAD BANCARIA: Recordamos el correo permanentemente, pero el token es temporal
         localStorage.setItem('nexora_saved_email', emailToSave);
-        localStorage.setItem('nexora_token', response.data.token);
+        sessionStorage.setItem('nexora_token', response.data.token);
+        
         const user = response.data.user;
-        localStorage.setItem('user', JSON.stringify(user));
+        sessionStorage.setItem('user', JSON.stringify(user));
 
         if (user.role === 'ADMIN') {
           window.location.href = '/admin-panel'; 

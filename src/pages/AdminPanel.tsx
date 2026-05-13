@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import { 
   ShieldCheck, Users, Ban, CheckCircle, Search, LogOut, AlertTriangle, 
   Settings, ShieldAlert, CalendarDays, X, Plus, Loader2, Copy, Check,
-  Headphones, MessageSquare, Send 
+  Headphones, MessageSquare, Send, Rocket 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -44,7 +44,6 @@ export default function AdminPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 🔥 FUNCIÓN CON RASTREADOR VISUAL PARA EL TELÉFONO 🔥
   const fetchUsers = async () => {
     try {
       const token = localStorage.getItem('nexora_token'); 
@@ -64,7 +63,6 @@ export default function AdminPanel() {
         alert("❌ El servidor respondió, pero con error: " + response.data.message);
       }
     } catch (error: any) {
-      // ESTA ES LA LÍNEA CLAVE QUE NOS DIRÁ QUÉ ESTÁ BLOQUEANDO LA NUBE
       alert("🛑 Bloqueo del servidor: " + (error.response?.data?.message || error.message));
       console.error("Error al cargar usuarios:", error);
     } finally {
@@ -75,8 +73,16 @@ export default function AdminPanel() {
   useEffect(() => {
     socketRef.current = io(SOCKET_URL);
     
+    // 🔥 EL ADMIN SE UNE A LA SALA GLOBAL SOLO CUANDO ESTÁ CONECTADO 🔥
+    socketRef.current.on('connect', () => {
+      console.log('🟢 [ADMIN] Socket conectado. Solicitando admin_room...');
+      socketRef.current.emit('join_admin'); 
+    });
+
     socketRef.current.on('receive_message', (data: any) => {
       const currentChatId = selectedChatUserRef.current?.id;
+      
+      // Si tenemos abierto el chat de la persona que escribió
       if (currentChatId === data.userId) {
         setSupportMessages((prev) => {
           const safePrev = prev || [];
@@ -85,13 +91,24 @@ export default function AdminPanel() {
           return [...safePrev, data]; 
         });
       } else {
-        setUnreadChats(prev => new Set(prev).add(data.userId));
+        // Si no es el chat activo, y el mensaje NO fue enviado por un admin, marcar como no leído
+        if (!data.isAdmin) {
+          setUnreadChats(prev => new Set(prev).add(data.userId));
+        }
       }
+
+      // Refrescar la lista de chats si escribió alguien nuevo que no estaba en la lista
+      setActiveChats(prev => {
+         const exists = prev.some(u => u.id === data.userId);
+         if (!exists) fetchActiveChats(); 
+         return prev;
+      });
     });
 
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -129,10 +146,6 @@ export default function AdminPanel() {
       next.delete(user.id);
       return next;
     });
-
-    if (socketRef.current) {
-      socketRef.current.emit('join_chat', user.id);
-    }
 
     try {
       const token = localStorage.getItem('nexora_token');
@@ -194,6 +207,18 @@ export default function AdminPanel() {
     }
   };
 
+  // ⚡ FUNCIÓN PARA DISPARAR LA ACTUALIZACIÓN EN TODOS LOS CLIENTES ⚡
+  const handleForceGlobalUpdate = () => {
+    if (window.confirm("⚠️ ADVERTENCIA: Esto forzará a todos los clientes a recargar su aplicación en 5 segundos. ¿Deseas continuar?")) {
+      if (socketRef.current) {
+        socketRef.current.emit('trigger_update');
+        alert("🚀 Comando de actualización enviado con éxito a la red global.");
+      } else {
+        alert("❌ Error: No estás conectado al servidor en tiempo real.");
+      }
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('nexora_token');
     localStorage.removeItem('user');
@@ -231,6 +256,13 @@ export default function AdminPanel() {
     user?.name?.toLowerCase().includes(search?.toLowerCase() || '')
   );
 
+  // 🔥 LÓGICA PARA ORDENAR: LOS CHATS NO LEÍDOS SUBEN AL PRINCIPIO 🔥
+  const sortedActiveChats = [...(activeChats || [])].sort((a, b) => {
+     const aUnread = unreadChats.has(a.id) ? 1 : 0;
+     const bUnread = unreadChats.has(b.id) ? 1 : 0;
+     return bUnread - aUnread; 
+  });
+
   return (
     <div className="min-h-screen bg-[#f8f9fa] font-sans pb-12 select-none">
       
@@ -251,52 +283,80 @@ export default function AdminPanel() {
           </div>
         </div>
         
-        <div className="hidden md:flex bg-stone-800 rounded-xl p-1 shadow-inner border border-stone-700">
+        <div className="hidden md:flex items-center gap-4">
+          <div className="bg-stone-800 rounded-xl p-1 shadow-inner border border-stone-700 mr-2">
+            <button 
+              onClick={() => {setCurrentView('directorio'); setSelectedChatUser(null);}} 
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${currentView === 'directorio' ? 'bg-indigo-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
+            >
+              Directorio
+            </button>
+            <button 
+              onClick={() => setCurrentView('soporte')} 
+              className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 relative ${currentView === 'soporte' ? 'bg-teal-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
+            >
+              <Headphones className="w-4 h-4" /> Soporte
+              {unreadChats.size > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-stone-800"></span>
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* ⚡ BOTÓN DE FORZAR ACTUALIZACIÓN ⚡ */}
           <button 
-            onClick={() => {setCurrentView('directorio'); setSelectedChatUser(null);}} 
-            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${currentView === 'directorio' ? 'bg-indigo-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
+             onClick={handleForceGlobalUpdate} 
+             className="flex items-center gap-2 bg-rose-600/20 text-rose-500 hover:bg-rose-600 hover:text-white border border-rose-600/30 font-black text-xs transition-colors px-3 py-2 rounded-lg active:scale-95" 
+             title="Forzar recarga en todos los clientes"
           >
-            Directorio
+             <Rocket className="w-4 h-4" /> Lanzar Update
           </button>
-          <button 
-            onClick={() => setCurrentView('soporte')} 
-            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 relative ${currentView === 'soporte' ? 'bg-teal-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
-          >
-            <Headphones className="w-4 h-4" /> Soporte
-            {unreadChats.size > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500 border-2 border-stone-800"></span>
-              </span>
-            )}
+
+          <button onClick={handleLogout} className="flex items-center gap-2 text-stone-400 hover:text-white font-bold text-sm transition-colors bg-stone-800 px-4 py-2 rounded-lg">
+            <LogOut className="w-4 h-4" /> Salir
           </button>
         </div>
-
-        <button onClick={handleLogout} className="flex items-center gap-2 text-stone-400 hover:text-white font-bold text-sm transition-colors bg-stone-800 px-4 py-2 rounded-lg">
-          <LogOut className="w-4 h-4" /> Salir
-        </button>
       </div>
 
       {/* Pestañas Móvil */}
-      <div className="flex md:hidden bg-stone-800 p-1 mb-4 shadow-inner border-b border-stone-700">
-          <button 
-            onClick={() => {setCurrentView('directorio'); setSelectedChatUser(null);}} 
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${currentView === 'directorio' ? 'bg-indigo-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
-          >
-            Directorio
-          </button>
-          <button 
-            onClick={() => setCurrentView('soporte')} 
-            className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 relative ${currentView === 'soporte' ? 'bg-teal-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
-          >
-            <Headphones className="w-4 h-4" /> Soporte
-            {unreadChats.size > 0 && (
-              <span className="absolute top-1 right-[20%] flex h-2.5 w-2.5">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
-              </span>
-            )}
-          </button>
+      <div className="flex flex-col md:hidden bg-stone-800 p-2 shadow-inner border-b border-stone-700">
+          <div className="flex gap-1 mb-2">
+            <button 
+              onClick={() => {setCurrentView('directorio'); setSelectedChatUser(null);}} 
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${currentView === 'directorio' ? 'bg-indigo-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
+            >
+              Directorio
+            </button>
+            <button 
+              onClick={() => setCurrentView('soporte')} 
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 relative ${currentView === 'soporte' ? 'bg-teal-600 text-white shadow-md' : 'text-stone-400 hover:text-white'}`}
+            >
+              <Headphones className="w-4 h-4" /> Soporte
+              {unreadChats.size > 0 && (
+                <span className="absolute top-1 right-[20%] flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                </span>
+              )}
+            </button>
+          </div>
+          
+          <div className="flex justify-between gap-2">
+             <button 
+               onClick={handleForceGlobalUpdate} 
+               className="flex-1 flex items-center justify-center gap-2 bg-rose-600/20 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-600/30 font-black text-xs transition-colors py-2 rounded-lg"
+             >
+               <Rocket className="w-4 h-4" /> Update
+             </button>
+             <button 
+               onClick={handleLogout} 
+               className="flex items-center justify-center gap-2 text-stone-400 hover:text-white font-bold text-xs transition-colors bg-stone-700 px-4 py-2 rounded-lg"
+             >
+               <LogOut className="w-4 h-4" />
+             </button>
+          </div>
       </div>
 
       <div className="p-4 md:p-10 max-w-7xl mx-auto">
@@ -433,10 +493,10 @@ export default function AdminPanel() {
                  </h2>
                </div>
                <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
-                 {(activeChats || []).length === 0 ? (
+                 {sortedActiveChats.length === 0 ? (
                    <p className="text-center text-stone-400 text-sm mt-10 font-bold">No hay clientes registrados.</p>
                  ) : (
-                   (activeChats || []).map(user => {
+                   sortedActiveChats.map(user => {
                      const hasUnread = unreadChats.has(user?.id);
                      
                      return (

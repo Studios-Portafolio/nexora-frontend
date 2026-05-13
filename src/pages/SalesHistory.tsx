@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Download, X, Receipt, Loader2, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Download, X, Receipt, Loader2, Search, ArrowLeft } from 'lucide-react';
 import html2canvas from 'html2canvas';
 
 const API_URL = 'https://nexora-api-psrx.onrender.com/api/finanzas';
 
 export default function SalesHistory() {
+  const navigate = useNavigate();
   const [sales, setSales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -64,8 +66,13 @@ export default function SalesHistory() {
   );
 
   return (
-    <div className="max-w-6xl mx-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4">
+    <div className="max-w-6xl mx-auto p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 pb-24">
       
+      {/* 🔥 BOTÓN DE VOLVER 🔥 */}
+      <button onClick={() => navigate('/')} className="mb-6 flex items-center text-stone-500 hover:text-indigo-600 font-black transition-colors active:scale-95 bg-white px-4 py-2 rounded-xl shadow-sm border border-stone-200 w-fit">
+        <ArrowLeft className="w-5 h-5 mr-2" /> Volver al Sistema
+      </button>
+
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-black text-stone-900 tracking-tight flex items-center gap-3">

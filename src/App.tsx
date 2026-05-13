@@ -1,65 +1,85 @@
 import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import axios from 'axios'; 
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Membership from './pages/Membership';
 import AdminPanel from './pages/AdminPanel';
-import SettingsPanel from './pages/SettingsPanel'; // 🔥 IMPORTAMOS EL PANEL DE CONFIGURACIÓN 🔥
-import SalesHistory from './pages/SalesHistory'; // 🔥 IMPORTAMOS EL LIBRO MAYOR DE VENTAS 🔥
-import SplashScreen from './pages/SplashScreen'; // 🔥 AQUÍ IMPORTAMOS EL SPLASH SCREEN 🔥
+import SettingsPanel from './pages/SettingsPanel';
+import SalesHistory from './pages/SalesHistory';
+import SplashScreen from './pages/SplashScreen';
+import PublicCatalog from './pages/PublicCatalog'; // 🔥 IMPORTAMOS EL CATÁLOGO PÚBLICO 🔥
 
-// Componente para proteger las rutas privadas
+// 🔥 INTERCEPTOR GLOBAL DE SEGURIDAD BANCARIA 🔥
+axios.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+      console.warn("🚨 SEGURIDAD: Usuario no autorizado o cuenta suspendida. Expulsando...");
+      
+      // Destruimos las llaves de la memoria temporal
+      sessionStorage.removeItem('nexora_token');
+      sessionStorage.removeItem('user');
+      
+      // Limpiamos también el local por si quedó basura de versiones anteriores
+      localStorage.removeItem('nexora_token');
+      localStorage.removeItem('user');
+      
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+// 🔥 PROTECCIÓN DE RUTAS CON MEMORIA TEMPORAL 🔥
 const ProtectedRoute = ({ children, requireAdmin = false }: { children: any, requireAdmin?: boolean }) => {
-  const token = localStorage.getItem('nexora_token');
-  const userLocalStr = localStorage.getItem('user');
+  // Leemos desde sessionStorage (Si cierra la pestaña o saca la app de 2do plano, esto se borra)
+  const token = sessionStorage.getItem('nexora_token');
+  const userStr = sessionStorage.getItem('user');
   
-  // Si no hay token guardado, patada de vuelta al login
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  // Si hay token, verificamos el rol
-  if (userLocalStr) {
+  if (userStr) {
     try {
-      const user = JSON.parse(userLocalStr);
+      const user = JSON.parse(userStr);
       
-      // Si la ruta requiere admin y no es admin, lo mandamos al dashboard
       if (requireAdmin && user.role !== 'ADMIN') {
         return <Navigate to="/" replace />;
       }
       
-      // Si va al Dashboard normal pero ES ADMIN, lo pateamos a su panel
       if (!requireAdmin && user.role === 'ADMIN') {
          return <Navigate to="/admin-panel" replace />;
       }
 
     } catch (e) {
-      console.error("Error leyendo user local");
+      console.error("Error leyendo user de la sesión");
       return <Navigate to="/login" replace />;
     }
   }
 
-  // Si pasa todas las pruebas, entra.
   return children;
 };
 
 function App() {
-  // 🔥 ESTADO QUE CONTROLA LA PANTALLA DE CARGA 🔥
   const [showSplash, setShowSplash] = useState(true);
 
   return (
     <>
-      {/* Si showSplash es true, mostramos la animación por encima de todo */}
       {showSplash && (
         <SplashScreen onComplete={() => setShowSplash(false)} />
       )}
 
-      {/* Tu aplicación real carga por debajo tranquilamente */}
       <BrowserRouter>
         <Routes>
+          {/* 🔥 RUTAS PÚBLICAS 🔥 */}
           <Route path="/login" element={<Login />} />
+          <Route path="/catalogo/:companyId" element={<PublicCatalog />} />
           
-          {/* Ruta principal del inventario (Solo usuarios normales) */}
+          {/* 🔥 RUTAS PROTEGIDAS 🔥 */}
           <Route 
             path="/" 
             element={
@@ -69,7 +89,6 @@ function App() {
             } 
           />
 
-          {/* ⚙️ Ruta de Configuración de Empresa (Para el dueño del negocio) */}
           <Route 
             path="/configuracion" 
             element={
@@ -79,7 +98,6 @@ function App() {
             } 
           />
 
-          {/* 🧾 NUEVA RUTA: Historial de Ventas y Facturas */}
           <Route 
             path="/historial-ventas" 
             element={
@@ -89,7 +107,6 @@ function App() {
             } 
           />
 
-          {/* 💸 Ruta de la pasarela de pagos */}
           <Route 
             path="/membresia" 
             element={
@@ -99,7 +116,6 @@ function App() {
             } 
           />
 
-          {/* 👑 Ruta del Panel de Administrador (Solo ADMIN) */}
           <Route 
             path="/admin-panel" 
             element={
@@ -109,7 +125,6 @@ function App() {
             } 
           /> 
           
-          {/* Cualquier otra ruta errónea, la mandamos al inicio */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
