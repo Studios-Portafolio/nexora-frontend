@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import html2canvas from 'html2canvas';
-import { QRCodeSVG } from 'qrcode.react'; // 🔥 LIBRERÍA DE QR
+import { QRCodeSVG } from 'qrcode.react'; 
 
 // 🔥 ÍCONOS PURIFICADOS 🔥
 import { 
@@ -15,24 +15,21 @@ import {
   Receipt, ArrowRight, RefreshCw, Rocket, QrCode, Download 
 } from 'lucide-react';
 
-// 🔥 IMPORTAMOS LAS VISTAS MODULARES 🔥
 import CajaView from '../components/CajaView';
 import InventarioView from '../components/InventarioView';
 import SuscripcionesView from '../components/SuscripcionesView';
 import ResumenView from '../components/ResumenView';
 import ChatView from '../components/ChatView';
 
-// 🔥 DIRECCIONES FIJAS A LA NUBE 🔥
 const API_URL = 'https://nexora-api-psrx.onrender.com/api'; 
 const SOCKET_URL = 'https://nexora-api-psrx.onrender.com';
-const FRONTEND_URL = 'https://sistema-nexora.onrender.com'; // 🔥 FIJADO PARA EL QR CON TU URL OFICIAL
+const FRONTEND_URL = 'https://sistema-nexora.onrender.com'; 
 
 const TrialBanner = ({ onNavigateToPlans }: { onNavigateToPlans: () => void }) => {
   const [daysLeft, setDaysLeft] = useState<number | null>(null);
   const [secondsLeft, setSecondsLeft] = useState(300);
 
   useEffect(() => {
-    // SEGURIDAD BANCARIA: Leemos de la sesión temporal primero
     const userLocalStr = sessionStorage.getItem('user') || localStorage.getItem('user');
     if (userLocalStr) {
       try {
@@ -178,7 +175,6 @@ const HistorialVentas = ({ companyInfo }: { companyInfo: any }) => {
         </div>
       </div>
 
-      {/* TICKET INVISIBLE PARA CAPTURA PNG */}
       {selectedSale && (
          <div className="fixed -left-[9999px] top-0 opacity-0 pointer-events-none">
             <div id="invoice-capture-mobile" className="bg-white p-8 w-[400px]">
@@ -225,7 +221,6 @@ const Dashboard = () => {
 
   const [completedCheckoutDetails, setCompletedCheckoutDetails] = useState<any>(null);
 
-  // ⚡ ESTADO DE ACTUALIZACIÓN FORZADA EN MEMORIA ⚡
   const [updateData, setUpdateData] = useState<{message: string, timestamp: number} | null>(null);
 
   useEffect(() => {
@@ -239,7 +234,13 @@ const Dashboard = () => {
 
   const [activeCategories, setActiveCategories] = useState<string[]>(['Alimentos', 'Limpieza', 'Electrónica']);
   const [newCategoryInput, setNewCategoryInput] = useState('');
-  const [companyInfo, setCompanyInfo] = useState({ name: 'Mi Empresa', rif: '', phone: '', address: '', logo: '' });
+  
+  // 🔥 ESTADO DE COMPANY AMPLIADO CON NUEVOS CAMPOS 🔥
+  const [companyInfo, setCompanyInfo] = useState({ 
+    name: 'Mi Empresa', rif: '', phone: '', address: '', logo: '',
+    isOpen: true, catalogMessage: '¡Bienvenidos!', minOrder: 0, paymentData: '', deliveryNote: ''
+  });
+  
   const [savingConfig, setSavingConfig] = useState(false);
   const [erpData, setErpData] = useState<any>(null);
 
@@ -274,7 +275,6 @@ const Dashboard = () => {
 
   const symbols: { [key: string]: string } = { USD: '$', BCV: 'Bs.', EUR: '€', USDT: '₮', VES: 'Bs.' };
 
-  // 🔥 NUEVO: OBTENER ID DEL USUARIO PARA EL QR 🔥
   const getUserId = () => {
     try {
       const user = JSON.parse(sessionStorage.getItem('user') || localStorage.getItem('user') || '{}');
@@ -283,7 +283,7 @@ const Dashboard = () => {
       return '';
     }
   };
-  // 🔥 FIJAMOS LA URL REAL PARA EL QR 🔥
+  
   const catalogUrl = `${FRONTEND_URL}/catalogo/${getUserId()}`;
 
   const handleLogout = () => { 
@@ -421,12 +421,24 @@ const Dashboard = () => {
     } catch (err) { console.error(err); }
   };
 
+  // 🔥 MAPEAMOS LOS NUEVOS CAMPOS DEL BACKEND 🔥
   const fetchCompanyConfigFromBackend = async () => {
     try {
       const token = sessionStorage.getItem('nexora_token');
       const res = await axios.get(`${API_URL}/settings/company`, { headers: { Authorization: `Bearer ${token}` } });
       if(res.data.success && res.data.data) {
-        setCompanyInfo({ name: res.data.data.legalName || 'Mi Empresa', rif: res.data.data.documentId || '', phone: res.data.data.phone || '', address: res.data.data.address || '', logo: res.data.data.logo || '' });
+        setCompanyInfo({ 
+          name: res.data.data.legalName || 'Mi Empresa', 
+          rif: res.data.data.documentId || '', 
+          phone: res.data.data.phone || '', 
+          address: res.data.data.address || '', 
+          logo: res.data.data.logo || '',
+          isOpen: res.data.data.isOpen ?? true,
+          catalogMessage: res.data.data.catalogMessage || '',
+          minOrder: res.data.data.minOrder || 0,
+          paymentData: res.data.data.paymentData || '',
+          deliveryNote: res.data.data.deliveryNote || ''
+        });
       }
       
       const ratesRes = await axios.get(`${API_URL}/settings/exchange-rates`, { headers: { Authorization: `Bearer ${token}` } });
@@ -444,14 +456,26 @@ const Dashboard = () => {
     } catch(e) {}
   };
 
-  const handleSaveCompanyOnly = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 🔥 GUARDAMOS LOS NUEVOS CAMPOS AL HACER CLICK 🔥
+  const handleSaveCompanyOnly = async (e?: React.FormEvent) => {
+    if(e) e.preventDefault();
     setSavingConfig(true);
     try {
       const token = sessionStorage.getItem('nexora_token');
       const headers = { Authorization: `Bearer ${token}` };
-      await axios.put(`${API_URL}/settings/company`, { legalName: companyInfo.name, documentId: companyInfo.rif, address: companyInfo.address, phone: companyInfo.phone, logo: companyInfo.logo }, { headers });
-      alert('✅ ¡Perfil Legal guardado con éxito!');
+      await axios.put(`${API_URL}/settings/company`, { 
+        legalName: companyInfo.name, 
+        documentId: companyInfo.rif, 
+        address: companyInfo.address, 
+        phone: companyInfo.phone, 
+        logo: companyInfo.logo,
+        isOpen: companyInfo.isOpen,
+        catalogMessage: companyInfo.catalogMessage,
+        minOrder: companyInfo.minOrder,
+        paymentData: companyInfo.paymentData,
+        deliveryNote: companyInfo.deliveryNote
+      }, { headers });
+      alert('✅ ¡Datos de Configuración Guardados!');
     } catch (error) { alert('❌ Error al guardar perfil.'); } 
     finally { setSavingConfig(false); }
   };
@@ -650,7 +674,6 @@ const Dashboard = () => {
     finally { setIsAiTyping(false); }
   };
 
-  // 🔥 DESCARGAR EL QR COMO IMAGEN 🔥
   const downloadQR = () => {
     const svg = document.getElementById("catalog-qr");
     if (!svg) return;
@@ -813,7 +836,25 @@ const Dashboard = () => {
             
             {currentView === 'configuracion' && (
                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto w-full">
-                 <div className="mb-6 md:mb-8"><h1 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">Ajustes del Sistema</h1></div>
+                 
+                 {/* 🔥 BOTÓN ASESINO DE TIENDA Y TÍTULO 🔥 */}
+                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8">
+                   <h1 className="text-2xl md:text-3xl font-black text-stone-900 tracking-tight">Ajustes de Nexora</h1>
+                   <button 
+                     type="button"
+                     onClick={async () => {
+                       const newState = !companyInfo.isOpen;
+                       setCompanyInfo({...companyInfo, isOpen: newState});
+                       try {
+                         const token = sessionStorage.getItem('nexora_token');
+                         await axios.put(`${API_URL}/settings/company`, { isOpen: newState }, { headers: { Authorization: `Bearer ${token}` } });
+                       } catch(e) {}
+                     }}
+                     className={`px-6 py-3 rounded-2xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${companyInfo.isOpen ? 'bg-teal-500 text-white shadow-teal-500/20 hover:bg-teal-600' : 'bg-rose-500 text-white shadow-rose-500/20 hover:bg-rose-600'}`}
+                   >
+                     {companyInfo.isOpen ? <><CheckCircle2 className="w-5 h-5"/> TIENDA ONLINE ABIERTA</> : <><X className="w-5 h-5"/> TIENDA ONLINE CERRADA</>}
+                   </button>
+                 </div>
                  
                  <div className="md:hidden flex flex-col gap-3 mb-6">
                    <button onClick={() => setCurrentView('soporte')} className="w-full bg-teal-600 text-white p-4 rounded-[20px] shadow-md flex items-center justify-between active:scale-95 transition-all">
@@ -836,9 +877,9 @@ const Dashboard = () => {
                       <div className="inline-flex items-center justify-center p-3 bg-white/10 rounded-2xl mb-4 backdrop-blur-sm">
                         <QrCode className="w-6 h-6 text-indigo-300" />
                       </div>
-                      <h2 className="text-2xl font-black text-white mb-2">Mi Catálogo Digital</h2>
+                      <h2 className="text-2xl font-black text-white mb-2">Mi E-Commerce Digital</h2>
                       <p className="text-indigo-200 text-sm mb-6 leading-relaxed max-w-md">
-                        Tus clientes pueden escanear este código QR para ver tu inventario disponible en tiempo real desde sus teléfonos.
+                        Tus clientes pueden escanear este código QR o usar el link para ver tu inventario en tiempo real y hacer pedidos directos al WhatsApp.
                       </p>
                       
                       <div className="flex flex-col sm:flex-row gap-3 justify-center md:justify-start">
@@ -881,6 +922,65 @@ const Dashboard = () => {
                     </div>
                  </div>
 
+                 {/* 🔥 FORMULARIOS E-COMMERCE 🔥 */}
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                   {/* Bancos y Delivery */}
+                   <div className="bg-white rounded-[24px] md:rounded-[32px] p-6 shadow-sm border border-stone-200 flex flex-col justify-between">
+                     <div>
+                       <div className="flex items-center gap-3 mb-6">
+                         <div className="p-3 bg-orange-50 text-orange-600 rounded-2xl"><Landmark className="w-6 h-6" /></div>
+                         <h2 className="text-xl font-black text-stone-800">Cuentas y Envíos</h2>
+                       </div>
+                       <div className="space-y-4">
+                         <div>
+                           <label className="block text-[10px] font-black text-stone-500 mb-2 uppercase tracking-widest">Datos de Pago Móvil / Zelle / Efectivo</label>
+                           <textarea className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl font-medium text-sm h-24 outline-none focus:ring-2 focus:ring-orange-500" value={companyInfo.paymentData || ''} onChange={(e) => setCompanyInfo({...companyInfo, paymentData: e.target.value})} placeholder="Escribe aquí los datos que el cliente usará para pagar..." />
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                           <div>
+                             <label className="block text-[10px] font-black text-stone-500 mb-2 uppercase tracking-widest">Compra Mínima ($)</label>
+                             <input type="number" step="0.5" className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl font-black text-stone-800 outline-none focus:ring-2 focus:ring-orange-500" value={companyInfo.minOrder} onChange={(e) => setCompanyInfo({...companyInfo, minOrder: parseFloat(e.target.value) || 0})} />
+                           </div>
+                           <div>
+                             <label className="block text-[10px] font-black text-stone-500 mb-2 uppercase tracking-widest">Nota de Delivery</label>
+                             <input type="text" className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl font-medium text-sm outline-none focus:ring-2 focus:ring-orange-500" value={companyInfo.deliveryNote || ''} onChange={(e) => setCompanyInfo({...companyInfo, deliveryNote: e.target.value})} placeholder="Ej: Costo a convenir" />
+                           </div>
+                         </div>
+                         <div>
+                           <label className="block text-[10px] font-black text-stone-500 mb-2 uppercase tracking-widest">Banner Promocional</label>
+                           <input type="text" className="w-full p-4 bg-stone-50 border border-stone-200 rounded-2xl font-medium text-sm outline-none focus:ring-2 focus:ring-orange-500" value={companyInfo.catalogMessage || ''} onChange={(e) => setCompanyInfo({...companyInfo, catalogMessage: e.target.value})} placeholder="Ej: ¡Descuento pagando en divisas!" />
+                         </div>
+                       </div>
+                     </div>
+                     <button onClick={handleSaveCompanyOnly} disabled={savingConfig} className="mt-6 w-full py-3 bg-stone-900 text-white rounded-xl font-black text-sm active:scale-95 transition-all flex justify-center items-center gap-2">
+                       {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Guardar Ajustes</>}
+                     </button>
+                   </div>
+
+                   {/* Tasas */}
+                   <form onSubmit={handleSaveRatesOnly} className="bg-white rounded-[24px] md:rounded-[32px] p-6 shadow-sm border border-stone-200 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-3 mb-6">
+                          <div className="p-3 bg-teal-50 text-teal-600 rounded-2xl"><DollarSign className="w-6 h-6" /></div>
+                          <div>
+                            <h2 className="text-xl font-black text-stone-800">Tasas de Cambio</h2>
+                            <p className="text-xs text-stone-400 font-bold mt-1">Usadas en Caja y Catálogo Web</p>
+                          </div>
+                        </div>
+                        <div className="space-y-4">
+                          <div className="relative"><label className="block text-[10px] font-black text-stone-500 mb-1 uppercase tracking-widest">Bolívares (VES)</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-sm">Bs.</span><input type="number" step="0.01" min="0" value={rates.BCV || ''} onChange={e => setRates({...rates, BCV: parseFloat(e.target.value) || 0})} className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-10 pr-3 py-4 outline-none focus:ring-2 focus:ring-teal-500 font-black text-stone-800 text-lg"/></div></div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="relative"><label className="block text-[10px] font-black text-stone-500 mb-1 uppercase tracking-widest">Euros (EUR)</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-sm">€</span><input type="number" step="0.01" min="0" value={rates.EUR || ''} onChange={e => setRates({...rates, EUR: parseFloat(e.target.value) || 0})} className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-3 outline-none focus:ring-2 focus:ring-teal-500 font-bold text-stone-800 text-sm"/></div></div>
+                            <div className="relative"><label className="block text-[10px] font-black text-stone-500 mb-1 uppercase tracking-widest">Tether (USDT)</label><div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 font-bold text-sm">₮</span><input type="number" step="0.01" min="0" value={rates.USDT || ''} onChange={e => setRates({...rates, USDT: parseFloat(e.target.value) || 0})} className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-9 pr-3 py-3 outline-none focus:ring-2 focus:ring-teal-500 font-bold text-stone-800 text-sm"/></div></div>
+                          </div>
+                        </div>
+                      </div>
+                      <button type="submit" disabled={savingConfig} className="mt-6 w-full flex items-center justify-center gap-2 bg-teal-700 text-white px-6 py-3 rounded-xl font-black shadow-md hover:bg-teal-800 transition-all disabled:opacity-50 text-sm">
+                        {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Actualizar Tasas</>}
+                      </button>
+                   </form>
+                 </div>
+
                  <form onSubmit={handleSaveCompanyOnly} className="mb-6 bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 shadow-sm border border-stone-200">
                     <div className="flex items-center gap-3 mb-6 border-b border-stone-100 pb-4">
                       <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><Building2 className="w-6 h-6" /></div>
@@ -911,28 +1011,6 @@ const Dashboard = () => {
                     <div className="mt-6 flex justify-end">
                       <button type="submit" disabled={savingConfig} className="flex items-center gap-2 bg-stone-900 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-stone-800 transition-all disabled:opacity-50">
                         {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar Perfil Legal
-                      </button>
-                    </div>
-                 </form>
-
-                 <form onSubmit={handleSaveRatesOnly} className="mb-6 bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 shadow-sm border border-stone-200">
-                    <div className="flex items-center gap-3 mb-6 border-b border-stone-100 pb-4">
-                      <div className="p-3 bg-teal-50 text-teal-600 rounded-2xl"><DollarSign className="w-6 h-6" /></div>
-                      <div>
-                        <h2 className="text-xl font-black text-stone-800">Tasas de Cambio</h2>
-                        <p className="text-xs text-stone-400 font-bold mt-1">Basado en USD ($) como moneda principal</p>
-                      </div>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <div className="relative"><label className="block text-sm font-black text-stone-500 mb-2">Bolívares (VES)</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">Bs.</span><input type="number" step="0.01" min="0" value={rates.BCV || ''} onChange={e => setRates({...rates, BCV: parseFloat(e.target.value) || 0})} className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-12 pr-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 font-bold text-stone-800"/></div></div>
-                      <div className="relative"><label className="block text-sm font-black text-stone-500 mb-2">Euros (EUR)</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">€</span><input type="number" step="0.01" min="0" value={rates.EUR || ''} onChange={e => setRates({...rates, EUR: parseFloat(e.target.value) || 0})} className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 font-bold text-stone-800"/></div></div>
-                      <div className="relative"><label className="block text-sm font-black text-stone-500 mb-2">Tether (USDT)</label><div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-bold">₮</span><input type="number" step="0.01" min="0" value={rates.USDT || ''} onChange={e => setRates({...rates, USDT: parseFloat(e.target.value) || 0})} className="w-full bg-stone-50 border border-stone-200 rounded-2xl pl-10 pr-4 py-3 outline-none focus:ring-2 focus:ring-teal-500 font-bold text-stone-800"/></div></div>
-                    </div>
-
-                    <div className="mt-6 flex justify-end">
-                      <button type="submit" disabled={savingConfig} className="flex items-center gap-2 bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-teal-800 transition-all disabled:opacity-50">
-                        {savingConfig ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Guardar Tasas
                       </button>
                     </div>
                  </form>
