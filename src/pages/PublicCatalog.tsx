@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, Store, MapPin, Phone, Search, PackageX, ShoppingCart } from 'lucide-react';
+import { Loader2, Store, MapPin, Search, PackageX, ShoppingCart } from 'lucide-react';
+import { useCart } from '../Hooks/useCart';
+import FloatingCart from '../components/FloatingCart';
+import HomeStore from '../components/HomeStore'; // 🔥 El nuevo módulo de Inicio
 
 const API_URL = 'https://nexora-api-psrx.onrender.com/api/public';
 
@@ -14,19 +17,37 @@ const PublicCatalog = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('Todas');
   const [categories, setCategories] = useState<string[]>(['Todas']);
+  
+  // 🔥 ESTADO DE LA BARRA DE NAVEGACIÓN
+  const [view, setView] = useState<'inicio' | 'productos'>('inicio');
 
-  // 🔥 ESTADOS DEL CARRITO Y WHATSAPP 🔥
-  const [cart, setCart] = useState<any[]>([]);
-  const [deliveryType, setDeliveryType] = useState<'RETIRO' | 'DELIVERY'>('RETIRO');
-  const [address, setAddress] = useState('');
-  const [refNumber, setRefNumber] = useState('');
+  // Hook modular del carrito
+  const { cart, addToCart, cartTotalUSD, cartTotalBs, isCartOpen, setIsCartOpen } = useCart(bcvRate, company?.isOpen || false);
 
+  // Interceptor del botón de retroceso (Android)
+  useEffect(() => {
+    if (isCartOpen) {
+      window.history.pushState({ modal: true }, '', window.location.pathname);
+    }
+
+    const handlePopState = () => {
+      if (isCartOpen) {
+        setIsCartOpen(false);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isCartOpen, setIsCartOpen]);
+
+  // 🔥 LÓGICA DE TIEMPO REAL (Polling cada 5 segundos)
   useEffect(() => {
     const fetchCatalog = async () => {
       try {
         const response = await axios.get(`${API_URL}/catalogo/${companyId}`);
         if (response.data.success) {
-          setCompany(response.data.data.company);
+          // Previene parpadeos: Solo actualiza si los datos cambiaron de verdad
+          setCompany((prev: any) => JSON.stringify(prev) !== JSON.stringify(response.data.data.company) ? response.data.data.company : prev);
           setProducts(response.data.data.products);
           setBcvRate(response.data.data.rates?.BCV || 1);
           
@@ -36,11 +57,15 @@ const PublicCatalog = () => {
       } catch (error) {
         console.error("Error al cargar el catálogo:", error);
       } finally {
-        setLoading(false);
+        if (loading) setLoading(false);
       }
     };
 
-    if (companyId) fetchCatalog();
+    if (companyId) {
+      fetchCatalog(); // Carga inicial
+      const interval = setInterval(fetchCatalog, 5000); // Vigila cada 5 segundos
+      return () => clearInterval(interval);
+    }
   }, [companyId]);
 
   if (loading) {
@@ -69,59 +94,16 @@ const PublicCatalog = () => {
     return matchesSearch && matchesCategory;
   });
 
-  // LÓGICA DEL CARRITO
-  const addToCart = (product: any) => {
-    if (!company.isOpen) return alert("La tienda está cerrada actualmente.");
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing && existing.quantity >= product.stock) return prev;
-      if (!existing && product.stock <= 0) return prev;
-      if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
-      const activePrice = (product.promoPrice && product.promoPrice > 0 && product.promoPrice < product.price) ? product.promoPrice : product.price;
-      return [...prev, { ...product, activePrice: activePrice, quantity: 1 }];
-    });
-  };
-
-  const cartTotalUSD = cart.reduce((sum, item) => sum + (item.activePrice * item.quantity), 0);
-  const cartTotalBs = cartTotalUSD * bcvRate;
-
-  // LÓGICA WHATSAPP
-  const sendWhatsAppOrder = () => {
-    if (!company.isOpen) return alert("La tienda está cerrada.");
-    if (company.minOrder > 0 && cartTotalUSD < company.minOrder) {
-       return alert(`El pedido mínimo para esta tienda es de $${company.minOrder.toFixed(2)}`);
-    }
-    
-    let message = `*NUEVO PEDIDO WEB*%0A`;
-    message += `---------------------------%0A`;
-    cart.forEach(item => {
-      message += `• ${item.quantity}x ${item.name} ($${(item.activePrice * item.quantity).toFixed(2)})%0A`;
-    });
-    message += `---------------------------%0A`;
-    message += `*TOTAL:* $${cartTotalUSD.toFixed(2)} / Bs. ${cartTotalBs.toFixed(2)}%0A%0A`;
-    message += `*MODALIDAD:* ${deliveryType === 'DELIVERY' ? '🛵 Delivery' : '🏪 Retiro en Tienda'}%0A`;
-    if (deliveryType === 'DELIVERY') {
-      message += `📍 *DIRECCIÓN:* ${address}%0A`;
-      message += `📝 *NOTA:* ${company.deliveryNote || 'A convenir'}%0A`;
-    }
-    if (refNumber) message += `🔢 *REFERENCIA DE PAGO:* ${refNumber}%0A`;
-    message += `%0A_(Enviando capture del pago por aquí...)_`;
-
-    window.open(`https://wa.me/${company.phone.replace('+', '')}?text=${message}`, '_blank');
-  };
-
   return (
-    // Agregamos padding extra abajo para que el carrito flotante no tape los productos
-    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-indigo-500/30 pb-96">
+    // Se agregó pb-32 para que el Bottom Nav no tape el contenido del final
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-indigo-500/30 pb-32 relative">
       
-      {/* 🔴 BANNER DE TIENDA CERRADA 🔴 */}
       {!company.isOpen && (
         <div className="bg-rose-600 p-3 text-center font-black text-xs uppercase tracking-widest sticky top-0 z-[60] shadow-lg animate-pulse">
            🚫 TIENDA CERRADA TEMPORALMENTE 🚫
         </div>
       )}
 
-      {/* 📢 BANNER DE ANUNCIO DEL DUEÑO */}
       {company.isOpen && company.catalogMessage && (
         <div className="bg-indigo-600 p-2 text-center font-bold text-[10px] uppercase tracking-widest sticky top-0 z-[60] shadow-lg">
            {company.catalogMessage}
@@ -146,159 +128,151 @@ const PublicCatalog = () => {
         </div>
       </header>
 
-      <div className="sticky top-8 z-40 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/5 px-4 py-4">
-        <div className="max-w-4xl mx-auto space-y-4">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
-            <input 
-              type="text" 
-              placeholder="Buscar productos..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-[#1c1c1e] border border-white/10 text-white pl-12 pr-4 py-3.5 rounded-2xl outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm"
-            />
-          </div>
-          
-          <div className="flex overflow-x-auto gap-2 pb-2 [&::-webkit-scrollbar]:hidden">
-            {categories.map(cat => (
-              <button 
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-sm font-black whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-[#1c1c1e] text-stone-400 hover:text-white border border-white/5'}`}
-              >
-                {cat}
-              </button>
-            ))}
+      {/* SOLO MOSTRAR BUSCADOR Y CATEGORÍAS SI ESTAMOS EN LA PESTAÑA "PRODUCTOS" */}
+      {view === 'productos' && (
+        <div className="sticky top-0 z-40 bg-[#0a0a0a]/90 backdrop-blur-xl border-b border-white/5 px-4 py-4">
+          <div className="max-w-4xl mx-auto space-y-4">
+            <div className="relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-500" />
+              <input 
+                type="text" 
+                placeholder="Buscar productos..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-[#1c1c1e] border border-white/10 text-white pl-12 pr-4 py-3.5 rounded-2xl outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm"
+              />
+            </div>
+            
+            <div className="flex overflow-x-auto gap-2 pb-2 [&::-webkit-scrollbar]:hidden">
+              {categories.map(cat => (
+                <button 
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-2 rounded-xl text-sm font-black whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30' : 'bg-[#1c1c1e] text-stone-400 hover:text-white border border-white/5'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <main className="max-w-4xl mx-auto p-4 md:p-6">
-        {filteredProducts.length === 0 ? (
-          <div className="text-center py-20 text-stone-500 flex flex-col items-center">
-            <PackageX className="w-16 h-16 mb-4 opacity-50" />
-            <p className="font-bold">No se encontraron productos.</p>
-          </div>
+        {view === 'inicio' ? (
+          // 🔥 MÓDULO DE INICIO (VITRINA)
+          <HomeStore products={products} addToCart={addToCart} bcvRate={bcvRate} />
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
-            {filteredProducts.map(product => {
-              const outOfStock = product.stock <= 0;
-              const hasPromo = product.promoPrice && product.promoPrice > 0 && product.promoPrice < product.price;
-              const activePrice = hasPromo ? product.promoPrice : product.price;
+          // 🔥 MÓDULO DE LISTA DE PRODUCTOS COMPLETA
+          <>
+            {filteredProducts.length === 0 ? (
+              <div className="text-center py-20 text-stone-500 flex flex-col items-center">
+                <PackageX className="w-16 h-16 mb-4 opacity-50" />
+                <p className="font-bold">No se encontraron productos.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6 animate-in fade-in duration-500">
+                {filteredProducts.map(product => {
+                  const outOfStock = product.stock <= 0;
+                  const hasPromo = product.promoPrice && product.promoPrice > 0 && product.promoPrice < product.price;
+                  const activePrice = hasPromo ? product.promoPrice : product.price;
 
-              return (
-                <div key={product.id} className="bg-[#151515] border border-white/5 rounded-[24px] overflow-hidden flex flex-col relative group">
-                  {outOfStock && (
-                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
-                      <span className="bg-rose-500/90 text-white px-4 py-1.5 rounded-full font-black tracking-widest text-[10px] uppercase shadow-lg border border-rose-400/50 rotate-[-10deg]">Agotado</span>
-                    </div>
-                  )}
+                  return (
+                    <div key={product.id} className="bg-[#151515] border border-white/5 rounded-[24px] overflow-hidden flex flex-col relative group">
+                      {outOfStock && (
+                        <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                          <span className="bg-rose-500/90 text-white px-4 py-1.5 rounded-full font-black tracking-widest text-[10px] uppercase shadow-lg border border-rose-400/50 rotate-[-10deg]">Agotado</span>
+                        </div>
+                      )}
 
-                  <div className="aspect-square bg-[#1c1c1e] p-4 flex items-center justify-center relative">
-                    {product.image ? (
-                      <img src={product.image} alt={product.name} className="w-full h-full object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-500" />
-                    ) : (
-                      <Store className="w-12 h-12 text-stone-600/50" />
-                    )}
-                    {hasPromo && !outOfStock && (
-                      <div className="absolute top-3 left-3 bg-rose-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">Oferta</div>
-                    )}
-                  </div>
-
-                  <div className="p-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-transparent to-[#0a0a0a]/50">
-                    <div>
-                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 line-clamp-1">{product.categoryName || product.description || 'General'}</p>
-                      <h3 className="font-bold text-sm text-stone-200 line-clamp-2 leading-snug">{product.name}</h3>
-                    </div>
-                    
-                    <div className="mt-3 flex items-end justify-between">
-                      <div>
-                        {hasPromo && (
-                          <p className="text-xs text-stone-500 line-through decoration-rose-500/50 font-medium">${parseFloat(product.price).toFixed(2)}</p>
+                      <div className="aspect-square bg-[#1c1c1e] p-4 flex items-center justify-center relative">
+                        {product.image ? (
+                          <img src={product.image} alt={product.name} className="w-full h-full object-contain drop-shadow-xl group-hover:scale-105 transition-transform duration-500" />
+                        ) : (
+                          <Store className="w-12 h-12 text-stone-600/50" />
                         )}
-                        <p className={`text-lg font-black tracking-tight ${hasPromo ? 'text-rose-400' : 'text-white'}`}>
-                          ${parseFloat(activePrice).toFixed(2)}
-                        </p>
-                        {/* 🔥 MOSTRAMOS LA TASA EN BOLÍVARES DEL DUEÑO 🔥 */}
-                        {bcvRate > 0 && (
-                          <p className="text-[10px] text-stone-400 font-bold mt-0.5">Bs. {(activePrice * bcvRate).toFixed(2)}</p>
+                        {hasPromo && !outOfStock && (
+                          <div className="absolute top-3 left-3 bg-rose-500 text-white text-[9px] font-black px-2 py-1 rounded-lg uppercase tracking-widest shadow-lg">Oferta</div>
                         )}
                       </div>
-                      
-                      {/* 🔥 BOTÓN DE CARRITO 🔥 */}
-                      {!outOfStock && company.isOpen && (
-                        <button onClick={() => addToCart(product)} className="bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95">
-                          <ShoppingCart className="w-4 h-4" />
-                        </button>
-                      )}
+
+                      <div className="p-4 flex-1 flex flex-col justify-between bg-gradient-to-b from-transparent to-[#0a0a0a]/50">
+                        <div>
+                          <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1 line-clamp-1">{product.categoryName || product.description || 'General'}</p>
+                          <h3 className="font-bold text-sm text-stone-200 line-clamp-2 leading-snug">{product.name}</h3>
+                        </div>
+                        
+                        <div className="mt-3 flex items-end justify-between">
+                          <div>
+                            {hasPromo && (
+                              <p className="text-xs text-stone-500 line-through decoration-rose-500/50 font-medium">${parseFloat(product.price).toFixed(2)}</p>
+                            )}
+                            <p className={`text-lg font-black tracking-tight ${hasPromo ? 'text-rose-400' : 'text-white'}`}>
+                              ${parseFloat(activePrice).toFixed(2)}
+                            </p>
+                            {bcvRate > 0 && (
+                              <p className="text-[10px] text-stone-400 font-bold mt-0.5">Bs. {(activePrice * bcvRate).toFixed(2)}</p>
+                            )}
+                          </div>
+                          
+                          {!outOfStock && company.isOpen && (
+                            <button onClick={() => addToCart(product)} className="bg-indigo-600 hover:bg-indigo-500 text-white p-2.5 rounded-xl transition-all shadow-lg active:scale-95">
+                              <ShoppingCart className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </main>
 
-      {/* 🔥 CARRITO FLOTANTE Y PROCESO DE PAGO 🔥 */}
-      {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#151515]/95 backdrop-blur-2xl border-t border-white/10 z-[60] animate-in slide-in-from-bottom-full">
-           <div className="max-w-4xl mx-auto">
-              {/* Cabecera del Carrito */}
-              <div className="flex justify-between items-end mb-4 border-b border-white/10 pb-4">
-                 <div>
-                    <p className="text-[10px] font-black text-stone-400 uppercase">Total Pedido</p>
-                    <p className="text-3xl font-black text-indigo-400">${cartTotalUSD.toFixed(2)}</p>
-                 </div>
-                 <div className="text-right">
-                    <p className="text-[10px] font-black text-stone-400 uppercase">Tasa: Bs. {bcvRate.toFixed(2)}</p>
-                    <p className="text-xl font-black text-white">Bs. {cartTotalBs.toFixed(2)}</p>
-                 </div>
-              </div>
+      <FloatingCart 
+        cart={cart} 
+        company={company} 
+        cartTotalUSD={cartTotalUSD} 
+        cartTotalBs={cartTotalBs} 
+        bcvRate={bcvRate}
+        isCartOpen={isCartOpen}
+        setIsCartOpen={setIsCartOpen}
+      />
 
-              {/* Lista Rápida */}
-              <div className="max-h-24 overflow-y-auto mb-4 space-y-2 [&::-webkit-scrollbar]:hidden">
-                 {cart.map(item => (
-                   <div key={item.id} className="flex justify-between items-center text-sm">
-                     <div className="flex items-center gap-2">
-                       <span className="bg-white/10 px-2 py-0.5 rounded text-xs font-bold">{item.quantity}x</span>
-                       <span className="font-medium text-stone-300 line-clamp-1">{item.name}</span>
-                     </div>
-                     <span className="font-bold">${(item.activePrice * item.quantity).toFixed(2)}</span>
-                   </div>
-                 ))}
-              </div>
-
-              <div className="space-y-3 mb-4">
-                 {/* Opciones de Delivery */}
-                 <div className="grid grid-cols-2 gap-2">
-                   <button onClick={() => setDeliveryType('RETIRO')} className={`py-2.5 rounded-xl text-xs font-black transition-all ${deliveryType === 'RETIRO' ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-stone-900 text-stone-400 border border-white/10'}`}>🏪 RETIRO</button>
-                   <button onClick={() => setDeliveryType('DELIVERY')} className={`py-2.5 rounded-xl text-xs font-black transition-all ${deliveryType === 'DELIVERY' ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-stone-900 text-stone-400 border border-white/10'}`}>🛵 DELIVERY</button>
-                 </div>
-                 
-                 {deliveryType === 'DELIVERY' && (
-                   <input type="text" placeholder="¿A qué dirección enviamos?" className="w-full bg-[#1c1c1e] border border-white/10 text-white px-4 py-3 rounded-xl outline-none focus:border-indigo-500 text-xs font-medium" value={address} onChange={(e) => setAddress(e.target.value)} />
-                 )}
-
-                 {/* Datos Bancarios */}
-                 <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-                   <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">Cuentas para Pagar:</p>
-                   <p className="font-medium text-xs text-stone-300 whitespace-pre-wrap">{company.paymentData || 'Pide los datos por WhatsApp'}</p>
-                   <input type="text" placeholder="Últimos 4 números de tu transferencia..." className="mt-3 w-full bg-[#1c1c1e] border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-indigo-500 text-white font-medium" value={refNumber} onChange={(e) => setRefNumber(e.target.value)} />
-                 </div>
-              </div>
-
-              {/* Botón WhatsApp */}
-              <button 
-                onClick={sendWhatsAppOrder} 
-                disabled={!company.isOpen || (deliveryType === 'DELIVERY' && !address)} 
-                className="w-full py-4 bg-[#25D366] hover:bg-[#128C7E] disabled:bg-stone-800 disabled:text-stone-600 rounded-2xl font-black text-sm transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2 text-white"
-              >
-                {company.isOpen ? <><Phone className="w-5 h-5"/> ENVIAR PEDIDO POR WHATSAPP</> : 'CERRADO POR HOY'}
-              </button>
-           </div>
-        </div>
+      {/* Botón flotante para reabrir el carrito - Ahora más alto (bottom-24) para no chocar con la barra de navegación */}
+      {!isCartOpen && cart.length > 0 && (
+        <button 
+          onClick={() => setIsCartOpen(true)}
+          className="fixed bottom-24 right-6 bg-indigo-600 text-white p-4 rounded-full shadow-[0_10px_25px_rgba(79,70,229,0.5)] z-50 flex items-center justify-center animate-bounce"
+        >
+          <ShoppingCart className="w-6 h-6" />
+          <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-xs font-black w-6 h-6 rounded-full flex items-center justify-center shadow-lg border-2 border-[#0a0a0a]">
+            {cart.reduce((sum: number, item: any) => sum + item.quantity, 0)}
+          </span>
+        </button>
       )}
+
+      {/* 📱 NUEVA BARRA DE NAVEGACIÓN INFERIOR (BOTTOM NAV) */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#151515]/95 backdrop-blur-2xl border-t border-white/5 py-4 px-16 flex justify-between items-center z-[55] shadow-[0_-10px_40px_rgba(0,0,0,0.3)]">
+        <button 
+          onClick={() => setView('inicio')} 
+          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'inicio' ? 'text-indigo-500 scale-110' : 'text-stone-500 hover:text-stone-300'}`}
+        >
+          <Store className="w-6 h-6" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Inicio</span>
+        </button>
+        
+        <button 
+          onClick={() => setView('productos')} 
+          className={`flex flex-col items-center gap-1.5 transition-all ${view === 'productos' ? 'text-indigo-500 scale-110' : 'text-stone-500 hover:text-stone-300'}`}
+        >
+          <Search className="w-6 h-6" />
+          <span className="text-[10px] font-black uppercase tracking-widest">Productos</span>
+        </button>
+      </nav>
+
     </div>
   );
 };
