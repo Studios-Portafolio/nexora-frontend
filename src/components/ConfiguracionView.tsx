@@ -1,6 +1,6 @@
 import React from 'react';
 import axios from 'axios';
-import { CheckCircle2, X, QrCode, Link as LinkIcon, Download, Landmark, DollarSign, Loader2, Save, Building2, Camera, Image as ImageIcon, FileText, MapPin, Phone, Tag, Calculator } from 'lucide-react';
+import { CheckCircle2, X, QrCode, Link as LinkIcon, Download, Landmark, Loader2, Save, Building2, Camera, Image as ImageIcon, FileText, MapPin, Phone, Tag, Calculator } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import SuscripcionesView from './SuscripcionesView';
 
@@ -136,10 +136,9 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = ({
 
             <div className="space-y-4">
               <div className="relative">
-                <label className="block text-[11px] font-black text-teal-600 mb-2 uppercase tracking-widest bg-teal-50 inline-block px-2 py-1 rounded-md">Tasa Manual Aplicada (Bolívares)</label>
+                <label className="text-[11px] font-black text-teal-600 mb-2 uppercase tracking-widest bg-teal-50 inline-block px-2 py-1 rounded-md">Tasa Manual Aplicada (Bolívares)</label>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400 font-black text-lg">Bs.</span>
-                  {/* Se usa rates.BCV como el valor principal para cobrar */}
                   <input type="number" step="0.01" min="0" value={rates.BCV || ''} onChange={e => setRates({...rates, BCV: parseFloat(e.target.value) || 0})} className="w-full bg-white border-2 border-stone-200 rounded-2xl pl-12 pr-4 py-4 outline-none focus:border-teal-500 focus:ring-4 focus:ring-teal-500/20 font-black text-stone-800 text-xl transition-all shadow-sm" placeholder="Ej: 42.50"/>
                 </div>
                 <p className="text-[10px] text-stone-500 font-medium mt-2 leading-relaxed">Este es el monto exacto en bolívares por el que se multiplicarán los precios en dólares dentro del catálogo web.</p>
@@ -152,7 +151,6 @@ const ConfiguracionView: React.FC<ConfiguracionViewProps> = ({
         </form>
       </div>
 
-      {/* El resto del código (Perfil Legal y Categorías) se mantiene igual */}
       <form onSubmit={handleSaveCompanyOnly} className="mb-6 bg-white rounded-[24px] md:rounded-[32px] p-5 md:p-8 shadow-sm border border-stone-200">
         <div className="flex items-center gap-3 mb-6 border-b border-stone-100 pb-4">
           <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><Building2 className="w-6 h-6" /></div>
