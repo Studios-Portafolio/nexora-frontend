@@ -1,135 +1,111 @@
 import React, { useState } from 'react';
-import { X, Check } from 'lucide-react';
-import TicketReceipt from './TicketReceipt'; // 🔥 IMPORTAMOS EL NUEVO MÓDULO
+import { X, ShoppingBag, Send, MapPin, User, Phone, Trash2, Minus, Plus, CreditCard, Package, FileText, IdCard } from 'lucide-react';
 
 interface FloatingCartProps {
   cart: any[];
   company: any;
   cartTotalUSD: number;
   cartTotalBs: number;
-  bcvRate: number;
   isCartOpen: boolean;
   setIsCartOpen: (val: boolean) => void;
+  updateQuantity: (id: string, delta: number) => void;
+  removeFromCart: (id: string) => void;
 }
 
-const FloatingCart: React.FC<FloatingCartProps> = ({
-  cart, company, cartTotalUSD, cartTotalBs, bcvRate, isCartOpen, setIsCartOpen
+const FloatingCart: React.FC<FloatingCartProps> = ({ 
+  cart, company, cartTotalUSD, cartTotalBs, isCartOpen, setIsCartOpen, updateQuantity, removeFromCart 
 }) => {
-  const [deliveryType, setDeliveryType] = useState<'RETIRO' | 'DELIVERY'>('RETIRO');
-  const [address, setAddress] = useState('');
-  const [refNumber, setRefNumber] = useState('');
-  
-  // 🔥 ESTADO PARA MOSTRAR EL RECIBO
-  const [showReceipt, setShowReceipt] = useState(false);
+  const [customerData, setCustomerData] = useState({ name: '', address: '', phone: '', cedula: '', payment: 'Pago Móvil', notes: '' });
 
-  if (!isCartOpen || cart.length === 0) return null;
+  if (!isCartOpen) return null;
 
-  // Modificamos esta función para que solo abra el recibo primero
-  const handleConfirmOrder = () => {
-    if (!company.isOpen) return alert("La tienda está cerrada.");
-    if (company.minOrder > 0 && cartTotalUSD < company.minOrder) {
-       return alert(`El pedido mínimo para esta tienda es de $${company.minOrder.toFixed(2)}`);
-    }
-    setShowReceipt(true);
-  };
+  const isFormValid = customerData.name.trim() !== '' && customerData.phone.trim() !== '' && customerData.cedula.trim() !== '';
 
-  // Esta función es la original que envía al WhatsApp, la llamaremos desde el recibo
-  const executeWhatsAppSend = () => {
-    let message = `*NUEVO PEDIDO WEB*%0A`;
-    message += `---------------------------%0A`;
-    cart.forEach(item => {
-      message += `• ${item.quantity}x ${item.name} ($${(item.activePrice * item.quantity).toFixed(2)})%0A`;
-    });
-    message += `---------------------------%0A`;
-    message += `*TOTAL:* $${cartTotalUSD.toFixed(2)} / Bs. ${cartTotalBs.toFixed(2)}%0A%0A`;
-    message += `*MODALIDAD:* ${deliveryType === 'DELIVERY' ? '🛵 Delivery' : '🏪 Retiro en Tienda'}%0A`;
-    if (deliveryType === 'DELIVERY') {
-      message += `📍 *DIRECCIÓN:* ${address}%0A`;
-      message += `📝 *NOTA:* ${company.deliveryNote || 'A convenir'}%0A`;
-    }
-    if (refNumber) message += `🔢 *REFERENCIA DE PAGO:* ${refNumber}%0A`;
-    message += `%0A_(Acabo de generar el recibo digital, lo envío a continuación...)_`;
+  const handleSendWhatsApp = () => {
+    if (!isFormValid) return alert("Por favor, ingresa tu Nombre, Teléfono y Cédula.");
 
-    window.open(`https://wa.me/${company.phone.replace('+', '')}?text=${message}`, '_blank');
+    let message = `¡Hola! Me gustaría hacer un pedido en *${company.name}* 🛍️\n\n`;
+    message += `*📋 DETALLES DEL PEDIDO:*\n`;
+    cart.forEach(item => { message += `▪️ ${item.quantity}x ${item.name} - $${(item.activePrice * item.quantity).toFixed(2)}\n`; });
+
+    message += `\n*💰 TOTAL A PAGAR:* $${cartTotalUSD.toFixed(2)} (Bs. ${cartTotalBs.toFixed(2)})\n\n`;
+    message += `*👤 MIS DATOS:*\nNombre: ${customerData.name}\nCédula: ${customerData.cedula}\nTeléfono: ${customerData.phone}\n`;
+    if (customerData.address) message += `Dirección / Mesa: ${customerData.address}\n`;
+    message += `Método de Pago: ${customerData.payment}\n`;
+    if (customerData.notes) message += `Notas Adicionales: ${customerData.notes}\n`;
+    message += `\n¡Espero su confirmación! 🚀`;
+
+    const encodedMessage = encodeURIComponent(message);
+    const phoneNumber = company.phone ? company.phone.replace(/\D/g, '') : '';
+    window.open(`https://wa.me/${phoneNumber}?text=${encodedMessage}`, '_blank');
   };
 
   return (
-    <>
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-[#151515]/95 backdrop-blur-2xl border-t border-white/10 z-[60] animate-in slide-in-from-bottom-full shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
-         <div className="max-w-4xl mx-auto">
-            {/* Cabecera */}
-            <div className="flex justify-between items-end mb-4 border-b border-white/10 pb-4 relative">
-               <div>
-                  <p className="text-[10px] font-black text-stone-400 uppercase">Total Pedido</p>
-                  <p className="text-3xl font-black text-indigo-400">${cartTotalUSD.toFixed(2)}</p>
-               </div>
-               <div className="text-right pr-12">
-                  <p className="text-[10px] font-black text-stone-400 uppercase">Tasa: Bs. {bcvRate.toFixed(2)}</p>
-                  <p className="text-xl font-black text-white">Bs. {cartTotalBs.toFixed(2)}</p>
-               </div>
-               <button onClick={() => setIsCartOpen(false)} className="absolute top-0 right-0 bg-white/5 p-2 rounded-full hover:bg-white/10 transition-colors">
-                  <X className="w-5 h-5 text-stone-400" />
-               </button>
+    <div className="fixed inset-0 z-[110] flex justify-end">
+      <div className="absolute inset-0 bg-[#0a0a0a]/60 backdrop-blur-sm animate-in fade-in" onClick={() => setIsCartOpen(false)}></div>
+      <div className="w-full md:w-[450px] h-full bg-[#151515] border-l border-white/10 shadow-[-20px_0_40px_rgba(0,0,0,0.5)] relative z-10 flex flex-col animate-in slide-in-from-right duration-300">
+        
+        <div className="p-5 md:p-6 border-b border-white/5 flex items-center justify-between flex-shrink-0 bg-[#1c1c1e]/50">
+          <h2 className="text-xl font-black text-white flex items-center gap-2"><ShoppingBag className="w-5 h-5 text-indigo-500" /> Mi Pedido</h2>
+          <button onClick={() => setIsCartOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full text-stone-400 hover:text-white transition-colors"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 md:p-6 space-y-4 [&::-webkit-scrollbar]:hidden">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-stone-500 opacity-50"><ShoppingBag className="w-16 h-16 mb-4" /><p className="font-bold text-sm uppercase tracking-widest">Tu carrito está vacío</p></div>
+          ) : (
+            cart.map(item => (
+              <div key={item.id} className="flex gap-4 items-center bg-[#1c1c1e] p-3 rounded-2xl border border-white/5 shadow-sm">
+                <div className="w-14 h-14 bg-[#0a0a0a] rounded-xl flex items-center justify-center flex-shrink-0 p-1">
+                  {item.image ? <img src={item.image} alt={item.name} className="w-full h-full object-contain" /> : <Package className="w-6 h-6 text-stone-600" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-stone-200 truncate">{item.name}</h4><p className="text-indigo-400 font-black text-sm">${(item.activePrice * item.quantity).toFixed(2)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2 flex-shrink-0">
+                  <button onClick={() => removeFromCart(item.id)} className="text-stone-500 hover:text-rose-500 transition-colors p-1"><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex items-center gap-2 bg-[#0a0a0a] rounded-lg p-0.5 border border-white/5">
+                    <button onClick={() => updateQuantity(item.id, -1)} className="p-1 text-stone-400 hover:text-white"><Minus className="w-3 h-3" /></button>
+                    <span className="text-xs font-black text-white w-4 text-center">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.id, 1)} className="p-1 text-stone-400 hover:text-white"><Plus className="w-3 h-3" /></button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+
+          {cart.length > 0 && (
+            <div className="mt-8 space-y-4 pt-6 border-t border-white/5">
+              <h3 className="text-xs font-black text-stone-500 uppercase tracking-widest flex items-center gap-2 mb-4"><User className="w-4 h-4" /> Datos de Entrega (Obligatorios)</h3>
+              <div className="space-y-3">
+                <div className="relative"><User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" /><input type="text" placeholder="Tu Nombre" value={customerData.name} onChange={e => setCustomerData({...customerData, name: e.target.value})} className="w-full bg-[#0a0a0a] border border-white/10 text-white pl-9 pr-3 py-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium" /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative"><IdCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" /><input type="text" placeholder="Cédula" value={customerData.cedula} onChange={e => setCustomerData({...customerData, cedula: e.target.value})} className="w-full bg-[#0a0a0a] border border-white/10 text-white pl-9 pr-3 py-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium" /></div>
+                  <div className="relative"><Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" /><input type="text" placeholder="Teléfono" value={customerData.phone} onChange={e => setCustomerData({...customerData, phone: e.target.value})} className="w-full bg-[#0a0a0a] border border-white/10 text-white pl-9 pr-3 py-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium" /></div>
+                </div>
+              </div>
+              <div className="relative"><MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" /><input type="text" placeholder="Dirección de envío o N° de Mesa" value={customerData.address} onChange={e => setCustomerData({...customerData, address: e.target.value})} className="w-full bg-[#0a0a0a] border border-white/10 text-white pl-9 pr-3 py-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium" /></div>
+              <div className="relative">
+                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-500" />
+                <select value={customerData.payment} onChange={e => setCustomerData({...customerData, payment: e.target.value})} className="w-full bg-[#0a0a0a] border border-white/10 text-stone-300 pl-9 pr-3 py-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium appearance-none">
+                  <option>Pago Móvil</option><option>Zelle / Binance</option><option>Efectivo (Dólares)</option><option>Efectivo (Bolívares)</option>
+                </select>
+              </div>
+              <div className="relative"><FileText className="absolute left-3 top-3 w-4 h-4 text-stone-500" /><textarea placeholder="Notas adicionales..." value={customerData.notes} onChange={e => setCustomerData({...customerData, notes: e.target.value})} className="w-full bg-[#0a0a0a] border border-white/10 text-white pl-9 pr-3 py-3 rounded-xl outline-none focus:border-indigo-500 text-sm font-medium h-20 resize-none"></textarea></div>
             </div>
+          )}
+        </div>
 
-            {/* Lista de Productos */}
-            <div className="max-h-24 overflow-y-auto mb-4 space-y-2 [&::-webkit-scrollbar]:hidden">
-               {cart.map(item => (
-                 <div key={item.id} className="flex justify-between items-center text-sm">
-                   <div className="flex items-center gap-2">
-                     <span className="bg-white/10 px-2 py-0.5 rounded text-xs font-bold">{item.quantity}x</span>
-                     <span className="font-medium text-stone-300 line-clamp-1">{item.name}</span>
-                   </div>
-                   <span className="font-bold">${(item.activePrice * item.quantity).toFixed(2)}</span>
-                 </div>
-               ))}
-            </div>
-
-            <div className="space-y-3 mb-4">
-               {/* Opciones Delivery */}
-               <div className="grid grid-cols-2 gap-2">
-                 <button onClick={() => setDeliveryType('RETIRO')} className={`py-2.5 rounded-xl text-xs font-black transition-all ${deliveryType === 'RETIRO' ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-stone-900 text-stone-400 border border-white/10'}`}>🏪 RETIRO</button>
-                 <button onClick={() => setDeliveryType('DELIVERY')} className={`py-2.5 rounded-xl text-xs font-black transition-all ${deliveryType === 'DELIVERY' ? 'bg-white text-black shadow-lg shadow-white/20' : 'bg-stone-900 text-stone-400 border border-white/10'}`}>🛵 DELIVERY</button>
-               </div>
-               
-               {deliveryType === 'DELIVERY' && (
-                 <input type="text" placeholder="¿A qué dirección enviamos?" className="w-full bg-[#1c1c1e] border border-white/10 text-white px-4 py-3 rounded-xl outline-none focus:border-indigo-500 text-xs font-medium" value={address} onChange={(e) => setAddress(e.target.value)} />
-               )}
-
-               {/* Datos de Pago */}
-               <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
-                 <p className="text-[10px] font-black text-indigo-400 uppercase mb-1">Cuentas para Pagar:</p>
-                 <p className="font-medium text-xs text-stone-300 whitespace-pre-wrap">{company.paymentData || 'Pide los datos por WhatsApp'}</p>
-                 <input type="text" placeholder="Últimos 4 números de tu transferencia..." className="mt-3 w-full bg-[#1c1c1e] border border-white/10 p-3 rounded-xl text-xs outline-none focus:border-indigo-500 text-white font-medium" value={refNumber} onChange={(e) => setRefNumber(e.target.value)} />
-               </div>
-            </div>
-
-            <button 
-              onClick={handleConfirmOrder} 
-              disabled={!company.isOpen || (deliveryType === 'DELIVERY' && !address)} 
-              className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-stone-800 disabled:text-stone-600 rounded-2xl font-black text-sm transition-all shadow-lg shadow-indigo-600/30 active:scale-95 flex items-center justify-center gap-2 text-white"
-            >
-              {company.isOpen ? <><Check className="w-5 h-5"/> CONFIRMAR Y GENERAR RECIBO</> : 'CERRADO POR HOY'}
+        {cart.length > 0 && (
+          <div className="p-5 md:p-6 bg-[#1c1c1e] border-t border-white/5 flex-shrink-0">
+            <div className="flex justify-between items-end mb-4"><span className="text-stone-400 font-bold text-xs uppercase tracking-widest">Total a Pagar</span><div className="text-right"><p className="text-2xl font-black text-white leading-none">${cartTotalUSD.toFixed(2)}</p><p className="text-xs text-stone-500 font-bold mt-1">Ref: Bs. {cartTotalBs.toFixed(2)}</p></div></div>
+            <button disabled={!isFormValid} onClick={handleSendWhatsApp} className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg ${isFormValid ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/20 active:scale-95' : 'bg-stone-800 text-stone-500 cursor-not-allowed'}`}>
+              <Send className="w-4 h-4" /> {isFormValid ? 'Enviar Pedido por WhatsApp' : 'Faltan Datos'}
             </button>
-         </div>
+          </div>
+        )}
       </div>
-
-      {/* RENDERIZADO DEL RECIBO FLOTANTE SI SE CONFIRMA LA ORDEN */}
-      {showReceipt && (
-        <TicketReceipt 
-          cart={cart}
-          company={company}
-          cartTotalUSD={cartTotalUSD}
-          cartTotalBs={cartTotalBs}
-          deliveryType={deliveryType}
-          address={address}
-          refNumber={refNumber}
-          onClose={() => setShowReceipt(false)}
-          onSendWhatsApp={executeWhatsAppSend}
-        />
-      )}
-    </>
+    </div>
   );
 };
-
 export default FloatingCart;

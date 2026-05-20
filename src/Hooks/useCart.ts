@@ -1,37 +1,62 @@
 import { useState, useMemo } from 'react';
 
-export const useCart = (bcvRate: number, isOpen: boolean) => {
+export const useCart = (bcvRate: number, isStoreOpen: boolean) => {
   const [cart, setCart] = useState<any[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  const addToCart = (product: any) => {
-    if (!isOpen) return alert("La tienda está cerrada actualmente.");
+  const addToCart = (product: any, quantity: number = 1) => {
+    if (!isStoreOpen) return;
     
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing && existing.quantity >= product.stock) return prev;
-      if (!existing && product.stock <= 0) return prev;
-      
+    setCart(prevCart => {
+      const existing = prevCart.find(item => item.id === product.id);
       if (existing) {
-        return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
+        return prevCart.map(item => 
+          item.id === product.id 
+            ? { ...item, quantity: Math.min(item.quantity + quantity, product.stock) } 
+            : item
         );
       }
-      
-      const activePrice = (product.promoPrice && product.promoPrice > 0 && product.promoPrice < product.price) 
-        ? product.promoPrice 
-        : product.price;
-        
-      return [...prev, { ...product, activePrice: activePrice, quantity: 1 }];
+      const activePrice = product.promoPrice && product.promoPrice > 0 ? product.promoPrice : product.price;
+      return [...prevCart, { ...product, activePrice, quantity }];
     });
     
-    // Abre el carrito automáticamente al agregar el primer producto
-    setIsCartOpen(true);
+    // 🔥 CLIC SILENCIOSO: Obligamos a que el carrito se quede cerrado 🔥
+    setIsCartOpen(false); 
   };
 
-  // 🔥 CORRECCIÓN TYPESCRIPT AQUÍ 🔥
-  const cartTotalUSD = useMemo(() => cart.reduce((sum: number, item: any) => sum + (item.activePrice * item.quantity), 0), [cart]);
-  const cartTotalBs = useMemo(() => cartTotalUSD * bcvRate, [cartTotalUSD, bcvRate]);
+  const updateQuantity = (productId: string, delta: number) => {
+    setCart(prevCart => prevCart.map(item => {
+      if (item.id === productId) {
+        const newQ = item.quantity + delta;
+        if (newQ > 0 && newQ <= item.stock) return { ...item, quantity: newQ };
+      }
+      return item;
+    }));
+  };
 
-  return { cart, setCart, addToCart, cartTotalUSD, cartTotalBs, isCartOpen, setIsCartOpen };
+  const removeFromCart = (productId: string) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  };
+
+  const clearCart = () => setCart([]);
+
+  const cartTotalUSD = useMemo(() => {
+    return cart.reduce((total, item) => total + (item.activePrice * item.quantity), 0);
+  }, [cart]);
+
+  const cartTotalBs = useMemo(() => {
+    return cartTotalUSD * bcvRate;
+  }, [cartTotalUSD, bcvRate]);
+
+  return {
+    cart,
+    addToCart,
+    updateQuantity,
+    removeFromCart,
+    clearCart,
+    cartTotalUSD,
+    cartTotalBs,
+    isCartOpen,
+    setIsCartOpen
+  };
 };

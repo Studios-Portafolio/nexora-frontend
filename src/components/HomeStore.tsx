@@ -3,12 +3,11 @@ import { Star, Flame } from 'lucide-react';
 
 interface HomeStoreProps {
   products: any[];
-  addToCart: (p: any) => void;
+  onProductClick: (p: any) => void;
   bcvRate: number;
 }
 
-const HomeStore: React.FC<HomeStoreProps> = ({ products, addToCart, bcvRate }) => {
-  // Filtramos los primeros 4 productos para Destacados y los que tienen promoción
+const HomeStore: React.FC<HomeStoreProps> = ({ products, onProductClick, bcvRate }) => {
   const featured = products.slice(0, 4);
   const promos = products.filter(p => p.promoPrice && p.promoPrice > 0).slice(0, 4);
 
@@ -31,7 +30,7 @@ const HomeStore: React.FC<HomeStoreProps> = ({ products, addToCart, bcvRate }) =
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden">
             {promos.map(p => (
-              <div key={p.id} onClick={() => addToCart(p)} className="min-w-[160px] bg-[#151515] p-3 rounded-3xl border border-rose-500/20 active:scale-95 transition-transform cursor-pointer">
+              <div key={p.id} onClick={() => onProductClick(p)} className="min-w-[160px] bg-[#151515] p-3 rounded-3xl border border-rose-500/20 active:scale-95 transition-transform cursor-pointer">
                 {p.image ? (
                    <img src={p.image} className="w-full h-24 object-contain mb-2" alt={p.name} />
                 ) : (
@@ -40,7 +39,6 @@ const HomeStore: React.FC<HomeStoreProps> = ({ products, addToCart, bcvRate }) =
                 <p className="text-[10px] font-bold text-rose-400">-{Math.round((1 - p.promoPrice/p.price) * 100)}% DCTO</p>
                 <p className="font-bold text-sm line-clamp-1 text-stone-200">{p.name}</p>
                 <p className="font-black text-white">${p.promoPrice.toFixed(2)}</p>
-                {/* 🔥 AQUÍ USAMOS EL BCVRATE PARA MOSTRAR LOS BOLÍVARES 🔥 */}
                 {bcvRate > 0 && (
                   <p className="text-[10px] text-stone-400 font-bold">Bs. {(p.promoPrice * bcvRate).toFixed(2)}</p>
                 )}
@@ -60,7 +58,7 @@ const HomeStore: React.FC<HomeStoreProps> = ({ products, addToCart, bcvRate }) =
             const activePrice = p.promoPrice && p.promoPrice > 0 ? p.promoPrice : p.price;
             
             return (
-              <div key={p.id} onClick={() => addToCart(p)} className="bg-[#151515] p-4 rounded-[28px] border border-white/5 flex flex-col items-center text-center cursor-pointer active:scale-95 transition-transform">
+              <div key={p.id} onClick={() => onProductClick(p)} className="bg-[#151515] p-4 rounded-[28px] border border-white/5 flex flex-col items-center text-center cursor-pointer active:scale-95 transition-transform">
                 {p.image ? (
                   <img src={p.image} className="w-20 h-20 object-contain mb-3" alt={p.name} />
                 ) : (
@@ -68,7 +66,6 @@ const HomeStore: React.FC<HomeStoreProps> = ({ products, addToCart, bcvRate }) =
                 )}
                 <h4 className="font-bold text-xs text-stone-300 line-clamp-1">{p.name}</h4>
                 <p className="font-black text-indigo-400 mt-1">${activePrice.toFixed(2)}</p>
-                {/* 🔥 AQUÍ USAMOS EL BCVRATE PARA MOSTRAR LOS BOLÍVARES 🔥 */}
                 {bcvRate > 0 && (
                   <p className="text-[10px] text-stone-400 font-bold">Bs. {(activePrice * bcvRate).toFixed(2)}</p>
                 )}

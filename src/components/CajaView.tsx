@@ -12,7 +12,8 @@ import {
   Plus, 
   CreditCard, 
   Loader2, 
-  CheckCircle2 
+  CheckCircle2,
+  Printer
 } from 'lucide-react';
 
 interface CajaViewProps {
@@ -40,7 +41,7 @@ interface CajaViewProps {
   setCompletedCheckoutDetails: (details: any) => void;
   fetchRealTimeRates: (isManualClick?: boolean) => void;
   isFetchingRates: boolean;
-  companyInfo?: any; // 🔥 AÑADIMOS LA INFO DE LA EMPRESA
+  companyInfo?: any;
 }
 
 const CajaView: React.FC<CajaViewProps> = ({
@@ -72,7 +73,8 @@ const CajaView: React.FC<CajaViewProps> = ({
 }) => {
 
   return (
-    <div className="flex-1 p-3 md:p-6 flex flex-col lg:flex-row gap-4 lg:gap-6 bg-[#f8f9fa] overflow-y-auto lg:overflow-hidden pb-24 lg:pb-6 relative">
+    // 🔥 EL ARREGLO ESTÁ AQUÍ: Se cambió a "overflow-y-auto pb-32" para TODAS las pantallas 🔥
+    <div className="flex-1 p-3 md:p-6 flex flex-col lg:flex-row gap-4 lg:gap-6 bg-[#f8f9fa] overflow-y-auto pb-32 relative">
       
       {/* 🔥 MODAL DE POS DIGITAL: PANTALLA DE ÉXITO CON TICKET DETALLADO 🔥 */}
       {completedCheckoutDetails && (
@@ -89,10 +91,8 @@ const CajaView: React.FC<CajaViewProps> = ({
               Recibo: <span className="text-stone-800">{completedCheckoutDetails.invoiceRef}</span>
             </p>
 
-            {/* 🔥 TICKET DIGITAL DETALLADO 🔥 */}
             <div className="w-full bg-stone-50 border border-stone-200 rounded-[20px] p-5 mb-6 shadow-sm text-left">
               
-              {/* Info de la Empresa */}
               <div className="text-center border-b border-stone-200 pb-4 mb-4">
                 {companyInfo?.logo && <img src={companyInfo.logo} alt="Logo" className="h-10 mx-auto mb-2 object-contain" />}
                 <h3 className="font-black text-stone-900 uppercase tracking-wide text-sm">{companyInfo?.name || 'Mi Empresa'}</h3>
@@ -100,7 +100,6 @@ const CajaView: React.FC<CajaViewProps> = ({
                 {companyInfo?.phone && <p className="text-[9px] text-stone-500">{companyInfo.phone}</p>}
               </div>
 
-              {/* Lista de Productos Comprados */}
               <div className="max-h-32 overflow-y-auto mb-4 text-xs font-medium text-stone-700 space-y-2 pr-2 [&::-webkit-scrollbar]:hidden">
                  {completedCheckoutDetails.items?.map((item: any, idx: number) => {
                     const priceInCurrency = (item.activePrice || item.price) * completedCheckoutDetails.exchangeRate;
@@ -113,14 +112,12 @@ const CajaView: React.FC<CajaViewProps> = ({
                  })}
               </div>
 
-              {/* Desglose de Totales */}
               <div className="border-t border-stone-200 pt-3 space-y-1.5 text-[10px] text-stone-500 font-bold">
                  <div className="flex justify-between"><span>Subtotal:</span><span>{symbols[completedCheckoutDetails.currency]}{(completedCheckoutDetails.subtotalUSD * completedCheckoutDetails.exchangeRate).toFixed(2)}</span></div>
                  <div className="flex justify-between"><span>IVA (16%):</span><span>{symbols[completedCheckoutDetails.currency]}{(completedCheckoutDetails.ivaUSD * completedCheckoutDetails.exchangeRate).toFixed(2)}</span></div>
                  {completedCheckoutDetails.igtfUSD > 0 && <div className="flex justify-between text-rose-500"><span>IGTF (3%):</span><span>{symbols[completedCheckoutDetails.currency]}{(completedCheckoutDetails.igtfUSD * completedCheckoutDetails.exchangeRate).toFixed(2)}</span></div>}
               </div>
 
-              {/* Total Cobrado Grande */}
               <div className="mt-4 pt-4 border-t border-stone-900 text-center">
                  <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest mb-1">Total Cobrado</p>
                  <p className="text-3xl font-black text-teal-600 tracking-tighter">
@@ -133,18 +130,33 @@ const CajaView: React.FC<CajaViewProps> = ({
 
             </div>
 
-            <button 
-              onClick={() => setCompletedCheckoutDetails(null)} 
-              className="w-full py-3.5 bg-stone-900 text-white rounded-[16px] font-black text-sm hover:bg-stone-800 transition-all active:scale-95 shadow-lg shadow-stone-900/20"
-            >
-              Nueva Venta
-            </button>
+            <div className="flex gap-3 w-full mt-4">
+              <button 
+                onClick={() => {
+                  const printWindow = window.open('', '_blank', 'width=400,height=600');
+                  if(printWindow) {
+                    const printHtml = `<html><head><title>Ticket ${completedCheckoutDetails.invoiceRef}</title><style>body{font-family:monospace;width:300px;margin:0 auto;color:#000;font-size:12px;text-align:center}.divider{border-bottom:1px dashed #000;margin:10px 0}.item{display:flex;justify-content:space-between;margin:5px 0}.bold{font-weight:bold;font-size:14px}</style></head><body><h2>${companyInfo?.name || 'Mi Empresa'}</h2><p>Recibo: ${completedCheckoutDetails.invoiceRef}</p><div class="divider"></div>${completedCheckoutDetails.items.map((i:any) => `<div class="item"><span>${i.quantity}x ${i.name.substring(0,15)}</span><span>${symbols[completedCheckoutDetails.currency]}${((i.activePrice || i.price)*completedCheckoutDetails.exchangeRate*i.quantity).toFixed(2)}</span></div>`).join('')}<div class="divider"></div><div class="item bold"><span>TOTAL:</span><span>${symbols[completedCheckoutDetails.currency]}${completedCheckoutDetails.total.toFixed(2)}</span></div><p style="margin-top:20px;font-size:10px">¡Gracias por su compra!</p><script>window.onload=()=>setTimeout(()=>{window.print();window.close();},500);</script></body></html>`;
+                    printWindow.document.write(printHtml);
+                  }
+                }}
+                className="flex-1 py-3.5 bg-stone-100 text-stone-800 rounded-[16px] font-black text-sm hover:bg-stone-200 transition-all active:scale-95 border border-stone-200 flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" /> Imprimir
+              </button>
+
+              <button 
+                onClick={() => setCompletedCheckoutDetails(null)} 
+                className="flex-1 py-3.5 bg-stone-900 text-white rounded-[16px] font-black text-sm hover:bg-stone-800 transition-all active:scale-95 shadow-lg shadow-stone-900/20"
+              >
+                Nueva Venta
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* --- PANEL IZQUIERDO: PRODUCTOS --- */}
-      <div className="flex-1 flex flex-col min-h-[400px] lg:h-full lg:min-h-0 bg-transparent order-1">
+      <div className="flex-1 flex flex-col min-h-[400px] bg-transparent order-1">
         <div className="mb-3 md:mb-4 hidden lg:flex justify-between items-end flex-shrink-0 px-1">
           <div>
             <h1 className="text-2xl font-black text-stone-800 tracking-tight">Punto de Venta</h1>
@@ -166,7 +178,6 @@ const CajaView: React.FC<CajaViewProps> = ({
                   const displayPrice = (activePrice * (rates[currency] || 1)).toFixed(2);
                   const originalPrice = (product.price * (rates[currency] || 1)).toFixed(2);
                   
-                  // LÓGICA DE STOCK EN TIEMPO REAL
                   const cartItem = cart.find(c => c.id === product.id);
                   const stockDisponible = product.stock - (cartItem ? cartItem.quantity : 0);
 
@@ -200,7 +211,8 @@ const CajaView: React.FC<CajaViewProps> = ({
       </div>
 
       {/* --- PANEL DERECHO: CARRITO Y COBRO --- */}
-      <div className="w-full lg:w-[320px] xl:w-[380px] flex flex-col gap-3 md:gap-4 flex-shrink-0 order-2 h-auto lg:h-full relative">
+      {/* 🔥 ARREGLO: Quitamos las restricciones de altura estricta para que fluya hacia abajo libremente 🔥 */}
+      <div className="w-full lg:w-[320px] xl:w-[380px] flex flex-col gap-3 md:gap-4 flex-shrink-0 order-2 h-auto pb-10 relative">
         <div className="bg-white border border-stone-200 rounded-[20px] md:rounded-[24px] shadow-sm p-3 md:p-4 relative overflow-hidden flex-shrink-0">
           <div className="flex justify-between items-center mb-2 md:mb-3.5 relative z-10">
             <h3 className="font-black text-stone-800 text-xs md:text-sm flex items-center"><TrendingUp className="w-3 h-3 md:w-4 md:h-4 mr-1.5 text-indigo-500" /> Moneda de Cobro</h3>
@@ -226,7 +238,7 @@ const CajaView: React.FC<CajaViewProps> = ({
           </div>
         </div>
 
-        <div className="bg-white border border-stone-200 rounded-[20px] md:rounded-[24px] shadow-sm flex flex-col flex-1 min-h-[400px] lg:min-h-0 overflow-hidden relative">
+        <div className="bg-white border border-stone-200 rounded-[20px] md:rounded-[24px] shadow-sm flex flex-col min-h-[400px] overflow-hidden relative">
           <div className="p-3 md:p-4 border-b border-stone-100 bg-stone-50/50 flex justify-between items-center flex-shrink-0 z-10">
             <h2 className="text-sm md:text-lg font-black text-stone-800 flex items-center"><Receipt className="w-4 h-4 md:w-5 md:h-5 mr-2 text-indigo-500" /> Ticket</h2>
             <div className="sm:hidden flex items-center gap-1 bg-stone-100 rounded-lg p-0.5">
@@ -235,7 +247,8 @@ const CajaView: React.FC<CajaViewProps> = ({
             </div>
           </div>
           
-          <div className="flex-1 relative min-h-[200px] lg:min-h-0 bg-stone-50/50">
+          {/* 🔥 ARREGLO: Altura máxima definida para la lista para no empujar botones 🔥 */}
+          <div className="relative bg-stone-50/50 h-[300px] lg:h-[250px]">
             <div className="absolute inset-0 overflow-y-auto p-2 md:p-3 space-y-2 [&::-webkit-scrollbar]:hidden">
               {cart.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-stone-400 space-y-2">

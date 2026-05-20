@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { io } from 'socket.io-client';
-import { ShieldAlert, CheckCircle2, CreditCard, Copy, Check, LogOut, MessageCircle, RefreshCw, Headphones, X, Send, AlertOctagon, Clock, Rocket } from 'lucide-react';
+import { ShieldAlert, CheckCircle2, CreditCard, Copy, Check, LogOut, MessageCircle, RefreshCw, Headphones, X, Send, Rocket, Zap, Crown } from 'lucide-react';
+import UpgradeBanner from '../components/UpgradeBanner';
 
 const API_URL = 'https://nexora-api-psrx.onrender.com/api';
 const SOCKET_URL = 'https://nexora-api-psrx.onrender.com';
@@ -15,9 +16,7 @@ const Membership = () => {
   const [euroRate, setEuroRate] = useState<number>(0);
   const [isFetchingRate, setIsFetchingRate] = useState(false);
 
-  // ⚡ ESTADO DE ACTUALIZACIÓN FORZADA ⚡
   const [updateMessage, setUpdateMessage] = useState<string | null>(null);
-
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -31,7 +30,7 @@ const Membership = () => {
   const whatsappNumber = "584121599459";
 
   useEffect(() => {
-    const userLocal = JSON.parse(localStorage.getItem('user') || '{}');
+    const userLocal = JSON.parse(sessionStorage.getItem('user') || '{}');
     setUser(userLocal);
     fetchEuroRate();
 
@@ -40,7 +39,6 @@ const Membership = () => {
       socketRef.current = socket;
       
       socket.on('connect', () => {
-        console.log('🟢 [CLIENTE] Socket conectado al servidor. Entrando a sala de usuario...');
         socket.emit('join_chat', userLocal.id);
       });
       
@@ -51,10 +49,7 @@ const Membership = () => {
         });
       });
 
-      // ⚡ ESCUCHAR LA ORDEN DE ACTUALIZACIÓN DEL DIOS ADMIN ⚡
       socket.on('force_update', (data: any) => {
-        console.log("🚀 ORDEN DE ACTUALIZACIÓN RECIBIDA");
-        // Muestra el banner bonito en vez de recargar automáticamente
         setUpdateMessage(data.message);
       });
 
@@ -64,7 +59,6 @@ const Membership = () => {
     return () => {
       if (socketRef.current) socketRef.current.disconnect();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -75,19 +69,18 @@ const Membership = () => {
 
   const fetchChatHistory = async (userId: string) => {
     try {
-      const token = localStorage.getItem('nexora_token');
+      const token = sessionStorage.getItem('nexora_token');
       const res = await axios.get(`${API_URL}/chat/messages/${userId}`, { headers: { Authorization: `Bearer ${token}` } });
       if (res.data.success) setChatMessages(res.data.data);
-    } catch (err) { console.error("Error cargando historial de chat"); }
+    } catch (err) {}
   };
 
   const handleSendSupportMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !user?.id) return;
-    
     setIsSending(true);
     try {
-      const token = localStorage.getItem('nexora_token');
+      const token = sessionStorage.getItem('nexora_token');
       const res = await axios.post(`${API_URL}/chat/messages`, 
         { userId: user.id, content: chatInput.trim(), isAdmin: false }, 
         { headers: { Authorization: `Bearer ${token}` } }
@@ -96,11 +89,7 @@ const Membership = () => {
         socketRef.current.emit('send_message', res.data.data);
         setChatInput('');
       }
-    } catch (err) {
-      alert("Error al enviar mensaje.");
-    } finally {
-      setIsSending(false);
-    }
+    } catch (err) { alert("Error al enviar mensaje."); } finally { setIsSending(false); }
   };
 
   const fetchEuroRate = async () => {
@@ -109,8 +98,7 @@ const Membership = () => {
       const res = await axios.get('https://ve.dolarapi.com/v1/euros');
       const oficial = res.data.find((d: any) => d.fuente === 'oficial' || d.nombre.toLowerCase().includes('oficial'));
       if (oficial) setEuroRate(parseFloat(oficial.promedio));
-    } catch (error) { console.error("Error buscando tasa"); } 
-    finally { setIsFetchingRate(false); }
+    } catch (error) {} finally { setIsFetchingRate(false); }
   };
 
   const handleCopy = (text: string, element: string) => {
@@ -120,8 +108,8 @@ const Membership = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('nexora_token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('nexora_token');
+    sessionStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -135,7 +123,6 @@ const Membership = () => {
 
   const renderPaymentMethods = (planName: string, amountUSD: number, accentColor: string) => {
     const amountBs = (amountUSD * euroRate).toFixed(2);
-    
     return (
       <div className={`p-5 md:p-8 bg-[#151515] border border-${accentColor}-900/30 rounded-b-[28px] animate-in slide-in-from-top-8 duration-300 -mt-8 pt-12 mb-6 relative z-0 shadow-inner`}>
         <h3 className="font-black text-stone-200 mb-5 flex items-center text-sm md:text-base">
@@ -177,34 +164,16 @@ const Membership = () => {
   return (
     <div className="min-h-screen bg-[#121212] flex flex-col font-sans select-none pb-12 text-white overflow-x-hidden relative">
       
-      {/* ⚡ NUEVO MODAL DE ACTUALIZACIÓN EN MODO OSCURO ⚡ */}
       {updateMessage && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex flex-col items-center justify-center p-4 text-center animate-in fade-in duration-300">
           <div className="bg-[#1c1c1e] border border-[#2c2c2e] w-full max-w-sm rounded-[32px] p-6 shadow-2xl animate-in zoom-in-95 duration-500 overflow-hidden relative">
             <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-[20px] flex items-center justify-center mx-auto mb-5 shadow-lg shadow-indigo-500/30 transform rotate-12">
-              <Rocket className="w-8 h-8 text-white -rotate-12" />
-            </div>
-
+            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-600 to-violet-500 rounded-[20px] flex items-center justify-center mx-auto mb-5 shadow-lg shadow-indigo-500/30 transform rotate-12"><Rocket className="w-8 h-8 text-white -rotate-12" /></div>
             <h2 className="text-2xl font-black text-white mb-2 tracking-tight">¡Nueva Versión!</h2>
-            <p className="text-sm font-medium text-stone-400 mb-6 leading-relaxed">
-              {updateMessage}
-            </p>
-
+            <p className="text-sm font-medium text-stone-400 mb-6 leading-relaxed">{updateMessage}</p>
             <div className="space-y-3 relative z-10">
-              <button 
-                onClick={() => window.location.reload()} 
-                className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-[16px] font-black text-sm transition-all active:scale-95 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"
-              >
-                <RefreshCw className="w-4 h-4" /> Actualizar Ahora
-              </button>
-              <button 
-                onClick={() => setUpdateMessage(null)} 
-                className="w-full py-3.5 bg-[#2c2c2e] hover:bg-[#3c3c3e] text-stone-300 border border-[#3c3c3e] rounded-[16px] font-bold text-sm transition-all active:scale-95"
-              >
-                Continuar sin actualizar
-              </button>
+              <button onClick={() => window.location.reload()} className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-[16px] font-black text-sm transition-all active:scale-95 shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2"><RefreshCw className="w-4 h-4" /> Actualizar Ahora</button>
+              <button onClick={() => setUpdateMessage(null)} className="w-full py-3.5 bg-[#2c2c2e] hover:bg-[#3c3c3e] text-stone-300 border border-[#3c3c3e] rounded-[16px] font-bold text-sm transition-all active:scale-95">Continuar sin actualizar</button>
             </div>
           </div>
         </div>
@@ -213,42 +182,20 @@ const Membership = () => {
       {/* NAVBAR */}
       <div className="w-full bg-[#1c1c1e]/80 backdrop-blur-md px-4 md:px-6 py-4 flex justify-between items-center z-40 border-b border-[#2c2c2e] sticky top-0">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-rose-500 rounded-lg flex items-center justify-center shadow-lg shadow-rose-500/20"><ShieldAlert className="text-white w-5 h-5" /></div>
-          <span className="font-black text-xl tracking-tight">Nexora</span>
+          {/* 🔥 REEMPLAZAMOS EL LOGOUT POR UN NAVIGATE HACIA ATRÁS SEGURO 🔥 */}
+          <button onClick={() => navigate(-1)} className="text-stone-400 hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-[#2c2c2e] px-4 py-2 rounded-xl border border-white/5 active:scale-95">
+             Volver
+          </button>
         </div>
-        <button onClick={handleLogout} className="text-stone-400 hover:text-white flex items-center gap-2 text-sm font-bold transition-colors bg-[#2c2c2e] px-4 py-2 rounded-xl border border-white/5 active:scale-95">
+        <button onClick={handleLogout} className="text-rose-500 hover:text-rose-400 flex items-center gap-2 text-sm font-bold transition-colors bg-rose-500/10 px-4 py-2 rounded-xl border border-rose-500/20 active:scale-95">
           <LogOut className="w-4 h-4" /> <span className="hidden sm:inline">Cerrar Sesión</span>
         </button>
       </div>
 
       <div className="max-w-5xl mx-auto w-full px-4 md:px-6 mt-8 md:mt-12 text-center">
         
-        {/* HEADER DE BIENVENIDA Y EXPLICACIÓN DE BANEO */}
-        <div className="w-full max-w-xl mx-auto text-center mb-10 animate-in fade-in slide-in-from-top-4 duration-500">
-          <h1 className="text-2xl md:text-3xl font-medium text-stone-200 mb-6 leading-relaxed">
-            Hola, <span className="font-black text-white">{user?.name?.split(' ')[0] || 'Usuario'}</span>. 
-          </h1>
-
-          {isBanned ? (
-            <div className="bg-rose-500/10 border border-rose-500/30 p-5 md:p-6 rounded-[24px] text-left">
-               <h2 className="text-rose-400 font-black flex items-center text-lg mb-2"><AlertOctagon className="w-6 h-6 mr-2"/> Tu cuenta ha sido suspendida</h2>
-               <p className="text-rose-200/80 text-sm leading-relaxed">El equipo de administración ha bloqueado temporalmente tu acceso a la plataforma por motivos de seguridad, falta de pago o incumplimiento de normativas.</p>
-               <div className="mt-4 pt-4 border-t border-rose-500/20">
-                  <p className="text-xs text-rose-300/60 font-bold mb-3">Si crees que esto es un error o deseas regularizar tu situación:</p>
-                  <button onClick={() => setIsChatOpen(true)} className="bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 hover:text-rose-200 px-4 py-2 rounded-xl font-bold text-xs transition-colors flex items-center border border-rose-500/20">
-                     <Headphones className="w-4 h-4 mr-2" /> Contactar a Soporte
-                  </button>
-               </div>
-            </div>
-          ) : (
-            <div className="bg-amber-500/10 border border-amber-500/30 p-5 md:p-6 rounded-[24px] text-left">
-               <h2 className="text-amber-400 font-black flex items-center text-lg mb-2"><Clock className="w-6 h-6 mr-2"/> Periodo finalizado</h2>
-               <p className="text-amber-200/80 text-sm leading-relaxed">Tu membresía activa o periodo de prueba ha llegado a su fin. Tu inventario, finanzas y configuración están a salvo y asegurados en la nube.</p>
-               <div className="mt-4 pt-4 border-t border-amber-500/20">
-                  <p className="text-xs text-amber-300/80 font-bold">Elige un plan de suscripción a continuación para recuperar el acceso de inmediato.</p>
-               </div>
-            </div>
-          )}
+        <div className="w-full max-w-xl mx-auto text-center mb-10">
+           <UpgradeBanner user={user} isBanned={isBanned} />
         </div>
 
         <div className="grid grid-cols-1 max-w-2xl mx-auto text-left gap-0">
@@ -264,59 +211,63 @@ const Membership = () => {
           </div>
           {selectedPlan === '1month' && renderPaymentMethods('1 Mes', 10, 'violet')}
 
+          {/* 🔥 PLAN SEMESTRAL ($50) - SIN TEXTO ABAJO, SOLO AHORRO 🔥 */}
           <div onClick={() => setSelectedPlan(selectedPlan === '6months' ? null : '6months')} className={`relative bg-[#1c1c1e] rounded-[28px] p-6 md:p-8 border-2 cursor-pointer transition-all duration-300 z-10 ${selectedPlan === '6months' ? 'border-indigo-500 shadow-2xl shadow-indigo-500/20 md:scale-105 bg-gradient-to-b from-[#1c1c1e] to-indigo-900/10' : 'border-[#2c2c2e] shadow-sm hover:border-stone-600 mb-4'}`}>
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 bg-indigo-500 text-white px-3 py-1 rounded-full text-[10px] md:text-xs font-black tracking-widest z-10 shadow-lg shadow-indigo-500/30 whitespace-nowrap">MÁS POPULAR</div>
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 bg-indigo-500 text-white px-3 py-1 rounded-full text-[10px] md:text-xs font-black tracking-widest z-10 shadow-lg shadow-indigo-500/30 whitespace-nowrap flex items-center gap-1">
+              MÁS POPULAR
+            </div>
             {selectedPlan === '6months' && <div className="absolute -top-3.5 right-auto left-8 md:left-8 bg-indigo-600 text-white px-3 py-1 rounded-full text-[10px] md:text-xs font-black tracking-widest flex items-center gap-1 shadow-lg shadow-indigo-500/30"><CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> SELECCIONADO</div>}
-            <h3 className="text-lg md:text-xl font-bold text-indigo-400 mb-2 pt-2 md:pt-0">Semestral</h3>
-            <div className="flex items-baseline gap-2 mb-6"><span className="text-4xl md:text-5xl font-black text-white">$40</span><span className="text-stone-500 font-bold text-sm">/ 6 meses</span></div>
-            <ul className="space-y-3 mb-2">
-              <li className="flex items-center gap-3 text-stone-300 font-medium text-sm"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" /> Ahorras $20 dólares</li>
-              <li className="flex items-center gap-3 text-stone-300 font-medium text-sm"><CheckCircle2 className="w-5 h-5 text-indigo-400 shrink-0" /> Acceso prioritario a Soporte IA</li>
-            </ul>
+            
+            <h3 className="text-lg md:text-xl font-bold text-indigo-400 mb-2 pt-2 md:pt-0 flex items-center gap-2">
+              Profesional <Zap className="w-4 h-4" />
+            </h3>
+            <div className="flex items-center gap-3">
+              <span className="text-4xl md:text-5xl font-black text-white">$50</span>
+              <span className="text-stone-500 font-bold text-sm mt-2">/ 6 meses</span>
+              <span className="text-emerald-400 font-black text-xs bg-emerald-400/10 px-2.5 py-1.5 rounded-lg border border-emerald-500/20 mt-2">¡Ahorras 16%!</span>
+            </div>
           </div>
-          {selectedPlan === '6months' && renderPaymentMethods('6 Meses', 40, 'indigo')}
+          {selectedPlan === '6months' && renderPaymentMethods('Profesional (6 Meses)', 50, 'indigo')}
 
+          {/* 🔥 PLAN ANUAL ($100) - SOLO 1 CARACTERÍSTICA 🔥 */}
           <div onClick={() => setSelectedPlan(selectedPlan === '1year' ? null : '1year')} className={`relative bg-[#1c1c1e] rounded-[28px] p-6 md:p-8 border-2 cursor-pointer transition-all duration-300 z-10 ${selectedPlan === '1year' ? 'border-amber-500 shadow-2xl shadow-amber-500/20 md:scale-105 bg-gradient-to-b from-[#1c1c1e] to-amber-900/10' : 'border-[#2c2c2e] shadow-sm hover:border-stone-600 mb-4'}`}>
-            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 bg-amber-500 text-stone-900 px-3 py-1 rounded-full text-[10px] md:text-xs font-black tracking-widest z-10 shadow-lg shadow-amber-500/30 whitespace-nowrap">AHORRA $30</div>
+            <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 md:translate-x-0 md:left-auto md:right-8 bg-amber-500 text-stone-900 px-3 py-1 rounded-full text-[10px] md:text-xs font-black tracking-widest z-10 shadow-lg shadow-amber-500/30 whitespace-nowrap flex items-center gap-1">
+              <Crown className="w-3 h-3" /> LA MEJOR EXPERIENCIA
+            </div>
             {selectedPlan === '1year' && <div className="absolute -top-3.5 right-auto left-8 md:left-8 bg-amber-600 text-white px-3 py-1 rounded-full text-[10px] md:text-xs font-black tracking-widest flex items-center gap-1 shadow-lg shadow-amber-500/30"><CheckCircle2 className="w-3 h-3 md:w-3.5 md:h-3.5" /> SELECCIONADO</div>}
-            <h3 className="text-lg md:text-xl font-bold text-amber-500 mb-2 pt-2 md:pt-0">Anual</h3>
-            <div className="flex items-baseline gap-2 mb-6"><span className="text-4xl md:text-5xl font-black text-white">$90</span><span className="text-stone-500 font-bold text-sm">/ 1 año</span></div>
+            
+            <h3 className="text-lg md:text-xl font-bold text-amber-500 mb-2 pt-2 md:pt-0">Enterprise Anual</h3>
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-4xl md:text-5xl font-black text-white">$100</span>
+              <span className="text-stone-500 font-bold text-sm mt-2">/ 1 año</span>
+              <span className="text-amber-400 font-black text-xs bg-amber-400/10 px-2.5 py-1.5 rounded-lg border border-amber-500/20 mt-2">¡Ahorras 16%!</span>
+            </div>
             <ul className="space-y-3 mb-2">
-              <li className="flex items-center gap-3 text-stone-300 font-medium text-sm"><CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0" /> Te regalamos 3 meses gratis</li>
               <li className="flex items-center gap-3 text-stone-300 font-medium text-sm"><CheckCircle2 className="w-5 h-5 text-amber-500 shrink-0" /> Atención directa de administración</li>
             </ul>
           </div>
-          {selectedPlan === '1year' && renderPaymentMethods('1 Año', 90, 'amber')}
+          {selectedPlan === '1year' && renderPaymentMethods('Enterprise Anual', 100, 'amber')}
 
         </div>
       </div>
 
-      <button 
-        onClick={() => setIsChatOpen(true)} 
-        className={`fixed bottom-6 right-6 md:bottom-10 md:right-10 bg-teal-600 text-white p-4 rounded-full shadow-lg shadow-teal-600/40 z-40 active:scale-95 transition-all hover:bg-teal-500 ${isChatOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}
-      >
+      <button onClick={() => setIsChatOpen(true)} className={`fixed bottom-6 right-6 md:bottom-10 md:right-10 bg-teal-600 text-white p-4 rounded-full shadow-lg shadow-teal-600/40 z-40 active:scale-95 transition-all hover:bg-teal-500 ${isChatOpen ? 'scale-0 opacity-0' : 'scale-100 opacity-100'}`}>
         <Headphones className="w-6 h-6 md:w-8 md:h-8" />
       </button>
 
       {isChatOpen && (
         <div className="fixed bottom-0 right-0 md:bottom-10 md:right-10 w-full md:w-96 h-[85vh] md:h-[500px] bg-[#1c1c1e] md:rounded-[32px] border-t md:border border-[#2c2c2e] shadow-2xl z-50 flex flex-col overflow-hidden animate-in slide-in-from-bottom-8">
-          
           <div className="bg-[#2c2c2e] p-4 flex justify-between items-center border-b border-white/5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-teal-500/20 rounded-full flex items-center justify-center"><Headphones className="w-5 h-5 text-teal-400" /></div>
-              <div>
-                <h3 className="text-white font-black text-sm">Soporte Técnico</h3>
-                <p className="text-teal-400 text-[10px] font-bold flex items-center"><span className="w-1.5 h-1.5 bg-teal-400 rounded-full mr-1.5 animate-pulse"></span> En línea</p>
-              </div>
+              <div><h3 className="text-white font-black text-sm">Soporte Técnico</h3><p className="text-teal-400 text-[10px] font-bold flex items-center"><span className="w-1.5 h-1.5 bg-teal-400 rounded-full mr-1.5 animate-pulse"></span> En línea</p></div>
             </div>
             <button onClick={() => setIsChatOpen(false)} className="text-stone-400 hover:text-white p-2 bg-stone-800 rounded-full transition-colors"><X className="w-5 h-5" /></button>
           </div>
-
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#121212] [&::-webkit-scrollbar]:hidden">
             <div className="bg-[#1c1c1e] p-3 rounded-2xl rounded-tl-sm border border-[#2c2c2e] max-w-[85%]">
-              <p className="text-stone-300 text-xs leading-relaxed">Hola {user?.name?.split(' ')[0]}. Soy tu asesor de soporte. ¿En qué te puedo ayudar hoy con respecto a tu suscripción?</p>
+              <p className="text-stone-300 text-xs leading-relaxed">Hola {user?.name?.split(' ')[0]}. Soy tu asesor de soporte. ¿En qué te puedo ayudar hoy?</p>
             </div>
-            
             {chatMessages.map((msg, idx) => (
               <div key={idx} className={`flex ${msg.role === 'user' || !msg.isAdmin ? 'justify-end' : 'justify-start'}`}>
                 <div className={`p-3 rounded-2xl max-w-[85%] text-xs font-medium leading-relaxed shadow-sm ${msg.role === 'user' || (!msg.isAdmin && msg.content) ? `bg-teal-600 text-white rounded-tr-sm` : 'bg-[#1c1c1e] border border-[#2c2c2e] text-stone-300 rounded-tl-sm'}`}>
@@ -326,20 +277,15 @@ const Membership = () => {
             ))}
             <div ref={chatEndRef} />
           </div>
-
           <form onSubmit={handleSendSupportMessage} className="p-3 bg-[#1c1c1e] border-t border-[#2c2c2e]">
             <div className="relative flex items-center">
               <input type="text" placeholder="Escribe tu mensaje..." value={chatInput} onChange={(e) => setChatInput(e.target.value)} disabled={isSending} className="w-full bg-[#121212] text-stone-200 border border-[#2c2c2e] rounded-full pl-4 pr-12 py-3 text-xs outline-none focus:border-teal-500 transition-colors" />
-              <button type="submit" disabled={!chatInput.trim() || isSending} className="absolute right-1.5 bg-teal-600 text-white p-2 rounded-full disabled:opacity-50 hover:bg-teal-500 transition-all">
-                <Send className="w-3.5 h-3.5" />
-              </button>
+              <button type="submit" disabled={!chatInput.trim() || isSending} className="absolute right-1.5 bg-teal-600 text-white p-2 rounded-full disabled:opacity-50 hover:bg-teal-500 transition-all"><Send className="w-3.5 h-3.5" /></button>
             </div>
           </form>
         </div>
       )}
-
     </div>
   );
 };
-
 export default Membership;
